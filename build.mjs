@@ -182,7 +182,7 @@ function layout({ title, description, path, content, section, type = "website" }
 <meta property="og:url" content="${abs(path)}">
 <meta name="twitter:card" content="summary">
 <link rel="alternate" type="application/rss+xml" title="${esc(site.title)}" href="/feed.xml">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f5fd0'/%3E%3Ctext x='16' y='22' font-family='system-ui,sans-serif' font-size='15' font-weight='600' fill='%23ffffff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%233987e5'/%3E%3Ctext x='16' y='22' font-family='system-ui,sans-serif' font-size='15' font-weight='600' fill='%230d0d0d' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/highlight.css">
 </head>
@@ -199,7 +199,11 @@ ${content}
 </main>
 <footer class="site-footer">
   <p>© ${new Date().getFullYear()} ${esc(site.author)}</p>
-  <p><a href="${site.github}">GitHub</a> · <a href="mailto:${site.email}">Email</a> · <a href="/feed.xml">RSS</a></p>
+  <ul class="footer-links">
+    <li><a href="${site.github}">GitHub</a></li>
+    <li><a href="mailto:${site.email}">Email</a></li>
+    <li><a href="/feed.xml">RSS</a></li>
+  </ul>
 </footer>
 </body>
 </html>
@@ -208,16 +212,21 @@ ${content}
 
 /* ---------- partials ---------- */
 
-const postItem = (p) => `<li>
-  <h2><a href="/posts/${p.slug}/">${esc(p.title)}</a></h2>
-  <p><time datetime="${p.date}">${prettyDate(p.date)}</time> · ${esc(p.summary)}</p>
+const postItem = (p) => `<li class="post-item">
+  <time class="post-date" datetime="${p.date}">${prettyDate(p.date)}</time>
+  <div>
+    <h2 class="post-title"><a href="/posts/${p.slug}/">${esc(p.title)}</a></h2>
+    <p class="post-summary">${esc(p.summary)}</p>
+  </div>
 </li>`;
 
 const projectItem = (p) => `<li class="project">
   <h3><a href="${p.repo}">${esc(p.name)}</a></h3>
-  <p>${esc(p.description)}</p>
-  <ul class="tags">${p.tags.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-  ${p.url ? `<p><a href="${p.url}">Live site →</a></p>` : ""}
+  <p class="project-desc">${esc(p.description)}</p>
+  <p class="project-meta">
+    <span>${p.tags.map(esc).join(", ")}</span>
+    ${p.url ? `<a href="${p.url}">Live site</a>` : ""}
+  </p>
 </li>`;
 
 /* ---------- pages ---------- */
@@ -236,7 +245,7 @@ ${
     ? `  <ul class="post-list">
 ${posts.slice(0, 3).map(postItem).join("\n")}
   </ul>
-  <p><a href="/posts/">All posts →</a></p>`
+  <p><a href="/posts/">All posts</a></p>`
     : `  <p class="lede">No posts yet.</p>`
 }
 </section>
@@ -247,7 +256,7 @@ ${
     ? `  <ul class="project-list">
 ${featured.map(projectItem).join("\n")}
   </ul>
-  <p><a href="/projects/">All projects →</a></p>`
+  <p><a href="/projects/">All projects</a></p>`
     : `  <p class="lede">No projects yet.</p>`
 }
 </section>`;
@@ -276,7 +285,7 @@ ${posts.map(postItem).join("\n")}
 );
 
 for (const post of posts) {
-  const tags = post.tags.length ? ` · ${post.tags.map(esc).join(", ")}` : "";
+  const tags = post.tags.length ? `<span>${post.tags.map(esc).join(", ")}</span>` : "";
   write(
     `posts/${post.slug}/index.html`,
     layout({
@@ -287,10 +296,13 @@ for (const post of posts) {
       type: "article",
       content: `<article>
   <h1>${esc(post.title)}</h1>
-  <p class="meta"><time datetime="${post.date}">${prettyDate(post.date)}</time>${tags}</p>
+  <p class="post-meta">
+    <time datetime="${post.date}">${prettyDate(post.date)}</time>
+    ${tags}
+  </p>
   ${post.html}
 </article>
-<p><a href="/posts/">← All posts</a></p>`,
+<p class="back-link"><a href="/posts/">All posts</a></p>`,
     })
   );
 }
@@ -323,7 +335,8 @@ ${allProjects.map(projectItem).join("\n")}
       description: data.description,
       path: "/about/",
       section: "about",
-      content: `<article>
+      content: `<h1>${esc(data.title)}</h1>
+<article>
 ${marked.parse(body)}</article>`,
     })
   );
