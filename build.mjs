@@ -6,6 +6,7 @@ import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
 import { site } from "./site.js";
 import { projects } from "./projects.js";
+import { motif, stillSVG, COLORS } from "./assets/motif.js";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const OUT = join(ROOT, "dist");
@@ -155,19 +156,79 @@ function validateProjects() {
 
 /* ---------- layout ---------- */
 
-function layout({ title, description, path, content, section, type = "website" }) {
+const NAV = [
+  ["Home", "/", "home"],
+  ["Posts", "/posts/", "posts"],
+  ["Projects", "/projects/", "projects"],
+  ["About", "/about/", "about"],
+];
+
+const nav = (section, attrs = "") => `<nav class="nav" aria-label="Main"${attrs}>
+    ${NAV.map(
+      ([label, href, key]) => `<a href="${href}"${key === section ? ' aria-current="page"' : ""}>${label}</a>`
+    ).join("\n    ")}
+  </nav>`;
+
+// A cloth is any element with data-cloth: the build ships a still of its
+// motif, and cloth.js paints the live version over it.
+let clothCount = 0;
+const cloth = (kind, seed) => {
+  const m = motif(seed);
+  return {
+    m,
+    attrs: `data-cloth="${kind}" data-seed="${esc(seed)}"`,
+    still: stillSVG(m, `cloth-${++clothCount}`),
+    label: `${m.name} no. ${m.number}. Indigo and soga on cotton.`,
+  };
+};
+
+const favicon = (() => {
+  const { nila, mori, soga } = COLORS;
+  const oval = (cx, cy, rx, ry) =>
+    `<ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='${mori}'/><ellipse cx='${cx}' cy='${cy}' rx='${rx * 0.2}' ry='${ry * 0.2}' fill='${soga}'/>`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='${nila}'/><g transform='rotate(45 16 16)'>${oval(22, 16, 5.6, 3.8)}${oval(10, 16, 5.6, 3.8)}${oval(16, 22, 3.8, 5.6)}${oval(16, 10, 3.8, 5.6)}</g></svg>`;
+  return `data:image/svg+xml,${svg.replace(/#/g, "%23").replace(/</g, "%3C").replace(/>/g, "%3E")}`;
+})();
+
+const footer = (label) => `<footer class="site-footer">
+  <p>© ${new Date().getFullYear()} ${esc(site.author)}</p>
+  <ul class="footer-links">
+    <li><a href="${site.github}">GitHub</a></li>
+    <li><a href="mailto:${site.email}">Email</a></li>
+    <li><a href="/feed.xml">RSS</a></li>
+  </ul>${label ? `\n  <p class="placard">This page’s cloth: ${esc(label)}</p>` : ""}
+</footer>`;
+
+// variant "home": content brings its own hero. "page": selvedge + header.
+// "lost": the whole sheet is cloth, with a hole burned through it.
+function layout({ title, description, path, content, section, type = "website", variant = "page" }) {
   const docTitle = title === site.title ? `${site.title} — ${site.tagline}` : `${title} — ${site.title}`;
-  const nav = [
-    ["Home", "/", "home"],
-    ["Posts", "/posts/", "posts"],
-    ["Projects", "/projects/", "projects"],
-    ["About", "/about/", "about"],
-  ]
-    .map(
-      ([label, href, key]) =>
-        `<a href="${href}"${key === section ? ' aria-current="page"' : ""}>${label}</a>`
-    )
-    .join("\n      ");
+  let body;
+  if (variant === "home") {
+    body = `${content}
+${footer()}`;
+  } else if (variant === "lost") {
+    const c = cloth("lost", path);
+    body = `<div class="cloth cloth-lost" ${c.attrs}>${c.still}</div>
+<header class="site-header">
+  <a class="brand" href="/" data-clear>${esc(site.title)}</a>
+  ${nav(section, " data-clear")}
+</header>
+<main id="main" class="lost">
+${content}
+</main>`;
+  } else {
+    const c = cloth("selvedge", path);
+    body = `<div class="cloth cloth-selvedge" ${c.attrs}>${c.still}</div>
+<header class="site-header">
+  <a class="brand" href="/">${esc(site.title)}</a>
+  ${nav(section)}
+</header>
+<main id="main">
+${content}
+</main>
+${footer(c.label)}`;
+  }
   return `<!DOCTYPE html>
 <html lang="${site.language}">
 <head>
@@ -175,6 +236,7 @@ function layout({ title, description, path, content, section, type = "website" }
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(docTitle)}</title>
 <meta name="description" content="${esc(description)}">
+<meta name="theme-color" content="${COLORS.nila}">
 <link rel="canonical" href="${abs(path)}">
 <meta property="og:type" content="${type}">
 <meta property="og:title" content="${esc(title)}">
@@ -182,29 +244,16 @@ function layout({ title, description, path, content, section, type = "website" }
 <meta property="og:url" content="${abs(path)}">
 <meta name="twitter:card" content="summary">
 <link rel="alternate" type="application/rss+xml" title="${esc(site.title)}" href="/feed.xml">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%233987e5'/%3E%3Ctext x='16' y='22' font-family='system-ui,sans-serif' font-size='15' font-weight='600' fill='%230d0d0d' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="${favicon}">
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/highlight.css">
+<script>document.documentElement.classList.add("js")</script>
+<script type="module" src="/cloth.js"></script>
 </head>
-<body>
+<body class="${variant}">
 <a class="skip" href="#main">Skip to content</a>
-<header class="site-header">
-  <a class="brand" href="/">${esc(site.title)}</a>
-  <nav aria-label="Main">
-      ${nav}
-  </nav>
-</header>
-<main id="main">
-${content}
-</main>
-<footer class="site-footer">
-  <p>© ${new Date().getFullYear()} ${esc(site.author)}</p>
-  <ul class="footer-links">
-    <li><a href="${site.github}">GitHub</a></li>
-    <li><a href="mailto:${site.email}">Email</a></li>
-    <li><a href="/feed.xml">RSS</a></li>
-  </ul>
-</footer>
+${body}
 </body>
 </html>
 `;
@@ -212,22 +261,26 @@ ${content}
 
 /* ---------- partials ---------- */
 
-const postItem = (p) => `<li class="post-item">
+const postItem = (p, h = "h2") => `<li class="post-item">
+  <${h} class="post-title"><a href="/posts/${p.slug}/">${esc(p.title)}</a></${h}>
+  <p class="post-summary">${esc(p.summary)}</p>
   <time class="post-date" datetime="${p.date}">${prettyDate(p.date)}</time>
-  <div>
-    <h2 class="post-title"><a href="/posts/${p.slug}/">${esc(p.title)}</a></h2>
-    <p class="post-summary">${esc(p.summary)}</p>
-  </div>
 </li>`;
 
-const projectItem = (p) => `<li class="project">
-  <h3><a href="${p.repo}">${esc(p.name)}</a></h3>
-  <p class="project-desc">${esc(p.description)}</p>
-  <p class="project-meta">
-    <span>${p.tags.map(esc).join(", ")}</span>
-    ${p.url ? `<a href="${p.url}">Live site</a>` : ""}
-  </p>
+const projectItem = (p, h = "h2") => {
+  const c = cloth("swatch", p.repo);
+  return `<li class="project">
+  <div class="swatch" ${c.attrs} title="${esc(c.label)}">${c.still}</div>
+  <div class="project-body">
+    <${h}><a href="${p.repo}">${esc(p.name)}</a></${h}>
+    <p class="project-desc">${esc(p.description)}</p>
+    <p class="project-meta">
+      <span>${p.tags.map(esc).join(", ")}</span>
+      ${p.url ? `<a href="${p.url}">Live site</a>` : ""}
+    </p>
+  </div>
 </li>`;
+};
 
 /* ---------- pages ---------- */
 
@@ -236,35 +289,53 @@ const allProjects = validateProjects();
 const featured = allProjects.filter((p) => p.featured);
 const newest = posts.length ? posts[0].date : new Date().toISOString().slice(0, 10);
 
-const home = `<h1>${esc(site.author)}</h1>
-<p class="lede">${esc(site.tagline)}</p>
-<section class="section">
-  <h2>Latest posts</h2>
+{
+  const hero = cloth("hero", "/");
+  const words = site.author.split(" ");
+  const last = words.pop();
+  const home = `<header class="hero" ${hero.attrs}>
+  ${hero.still}
+  ${nav("home", " data-clear")}
+  <h1 class="hero-name" data-wax><span class="line">${esc(words.join(" "))}</span> <span class="line">${esc(last)}</span></h1>
+  <div class="hero-foot">
+    <p class="cloth-hint" data-clear>Drag across the cloth to draw with wax.</p>
+    <p class="placard" data-clear>${esc(hero.label)}</p>
+  </div>
+</header>
+<main id="main" class="sheet">
+<p class="intro">${esc(site.tagline)}</p>
+<section class="shelf" aria-labelledby="latest-posts">
+  <h2 id="latest-posts">Posts</h2>
+  <div>
 ${
   posts.length
     ? `  <ul class="post-list">
-${posts.slice(0, 3).map(postItem).join("\n")}
+${posts.slice(0, 3).map((p) => postItem(p, "h3")).join("\n")}
   </ul>
-  <p><a href="/posts/">All posts</a></p>`
-    : `  <p class="lede">No posts yet.</p>`
+  <p class="more"><a href="/posts/">All posts</a></p>`
+    : `  <p>No posts yet.</p>`
 }
+  </div>
 </section>
-<section class="section">
-  <h2>Selected projects</h2>
+<section class="shelf" aria-labelledby="selected-projects">
+  <h2 id="selected-projects">Projects</h2>
+  <div>
 ${
   featured.length
     ? `  <ul class="project-list">
-${featured.map(projectItem).join("\n")}
+${featured.map((p) => projectItem(p, "h3")).join("\n")}
   </ul>
-  <p><a href="/projects/">All projects</a></p>`
-    : `  <p class="lede">No projects yet.</p>`
+  <p class="more"><a href="/projects/">All projects</a></p>`
+    : `  <p>No projects yet.</p>`
 }
-</section>`;
-
-write(
-  "index.html",
-  layout({ title: site.title, description: site.description, path: "/", content: home, section: "home" })
-);
+  </div>
+</section>
+</main>`;
+  write(
+    "index.html",
+    layout({ title: site.title, description: site.description, path: "/", content: home, section: "home", variant: "home" })
+  );
+}
 
 write(
   "posts/index.html",
@@ -277,7 +348,7 @@ write(
 ${
   posts.length
     ? `<ul class="post-list">
-${posts.map(postItem).join("\n")}
+${posts.map((p) => postItem(p)).join("\n")}
 </ul>`
     : `<p class="lede">No posts yet.</p>`
 }`,
@@ -316,7 +387,7 @@ write(
     section: "projects",
     content: `<h1>Projects</h1>
 <ul class="project-list">
-${allProjects.map(projectItem).join("\n")}
+${allProjects.map((p) => projectItem(p)).join("\n")}
 </ul>`,
   })
 );
@@ -335,8 +406,8 @@ ${allProjects.map(projectItem).join("\n")}
       description: data.description,
       path: "/about/",
       section: "about",
-      content: `<h1>${esc(data.title)}</h1>
-<article>
+      content: `<article>
+<h1>${esc(data.title)}</h1>
 ${marked.parse(body)}</article>`,
     })
   );
@@ -348,10 +419,13 @@ write(
     title: "Not found",
     description: "That page does not exist.",
     path: "/404.html",
-    section: "home",
-    content: `<h1>Not found</h1>
-<p>That page does not exist.</p>
-<p><a href="/">Back home</a></p>`,
+    section: "",
+    variant: "lost",
+    content: `<div class="hole" data-hole>
+  <h1>Not found</h1>
+  <p>That page does not exist.</p>
+  <p><a href="/">Back home</a></p>
+</div>`,
   })
 );
 

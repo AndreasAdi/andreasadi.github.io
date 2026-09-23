@@ -1,6 +1,7 @@
 ---
 title: Building this site by hand
 date: 2026-09-20
+updated: 2026-09-23
 summary: Plain HTML, one Node script, and no framework - how this site is put together.
 tags: [meta, node]
 ---
@@ -30,3 +31,15 @@ visitor's machine: no JavaScript, no fonts from a CDN, no analytics.
 
 If I want something else later, the source of truth is still Markdown files and
 a `projects.js` list.
+
+## Update, September 23
+
+The site now runs one script in the page. `cloth.js` uses WebGL to dye a batik
+cloth for each page: kawung, parang or truntum, picked from the page's address,
+so the same page always gets the same cloth. The strip along the edge of this
+page is one. Move your pointer across a cloth to draw on it with wax; the dye
+slowly bleeds back in.
+
+The build writes a still SVG of the same pattern into every page, so without
+JavaScript or WebGL you see the cloth standing still. There are still no
+dependencies in the page, no fonts from a CDN, and no analytics.

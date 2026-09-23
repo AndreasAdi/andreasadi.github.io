@@ -1,71 +1,68 @@
 /* ---------------------------------------------------------------
-   Andreas Adi — theme
+   Andreas Adi — Wastra
 
-   Dark-first, ruled, one accent. Surfaces, hairlines and ink come
-   from the same palette as mlb-tracker so both sites read as the
-   same hand; the accent carries signal (focus, selection, current
-   page) and nothing else.
+   Each page is a cloth in the dye bath. The cloth (cloth.js, with a
+   still SVG from the build underneath) is the one loud thing; the
+   reading surface around it is flat cotton, or indigo after dark.
 
-   Every text pair below was measured, not eyeballed: muted needs
-   #6d6b63 in light mode (#898781 measures 3.4:1 there), and the
-   light accent is #1f5fd0 (#2a78d6 measures 4.19:1).
+   Colours are the materials of batik: nila (indigo), mori (undyed
+   cotton), soga (the brown second dye) and malam (wax). Wax marks
+   what you do: selection, focus, the trail of your pointer.
+
+   Measured pairs: tinta on mori 13.7:1, muted on mori 5.5:1, soga on
+   mori 5.98:1, focus on mori 4.6:1; mori on nila-tua 14.2:1, muted
+   on nila-tua 7.6:1, mori on nila 11:1.
    --------------------------------------------------------------- */
 
 @font-face {
-  font-family: "Instrument Sans";
+  font-family: "Plus Jakarta Sans";
+  src: url("/fonts/plus-jakarta-sans-latin.woff2") format("woff2");
+  font-weight: 200 800;
   font-style: normal;
-  font-weight: 400 700;
   font-display: swap;
-  src: url("/fonts/instrument-sans-latin.woff2") format("woff2");
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
-    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
-    U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/fonts/plus-jakarta-sans-latin-italic.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
 }
 
 :root {
-  color-scheme: dark;
+  --nila: #1c2b5a;
+  --nila-tua: #0f1733;
+  --mori: #e8e7e1;
+  --soga: #7a4a24;
+  --malam: #e3c77a;
+  --tinta: #121a3a;
 
-  /* surfaces */
-  --plane: #0d0d0d;
-  --surface-1: #1a1a19;
-  --surface-2: #23231f;
-  --hairline: #2c2c2a;
-  --baseline: #383835;
+  --bg: var(--mori);
+  --ink: var(--tinta);
+  --muted: #525a75;
+  --rule: rgb(18 26 58 / 0.14);
+  --underline: var(--soga);
+  --focus: #8a5d0a;
+  --code-bg: rgb(28 43 90 / 0.06);
 
-  /* ink */
-  --ink: #ffffff;
-  --ink-2: #c3c2b7;
-  --ink-muted: #898781;
+  --selvedge: 3.5rem;
+  --edge: clamp(1.5rem, 5vw, 5rem);
+  --measure: 40rem;
+  --font: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
-  /* accent — signal only */
-  --accent: #3987e5;
-  --accent-ink: #0d0d0d;
-
-  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-
-  --measure: 68ch;
-  --lede-measure: 44ch;
-  --radius: 6px;
-  --radius-sm: 3px;
+  color-scheme: light dark;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    color-scheme: light;
-
-    --plane: #f9f9f7;
-    --surface-1: #fcfcfb;
-    --surface-2: #f1f0eb;
-    --hairline: #e1e0d9;
-    --baseline: #c9c8c1;
-
-    --ink: #0b0b0b;
-    --ink-2: #52514e;
-    --ink-muted: #6d6b63;
-
-    --accent: #1f5fd0;
-    --accent-ink: #ffffff;
+    --bg: var(--nila-tua);
+    --ink: var(--mori);
+    --muted: #a4a9bd;
+    --rule: rgb(232 231 225 / 0.14);
+    --underline: #c08a58;
+    --focus: var(--malam);
+    --code-bg: rgb(232 231 225 / 0.05);
   }
 }
 
@@ -78,100 +75,127 @@ html {
 }
 
 body {
-  margin: 0 auto;
-  max-width: var(--measure);
-  padding: 3.5rem 1.5rem 5rem;
-  background: var(--plane);
-  color: var(--ink-2);
-  font: 400 17px/1.6 var(--font-sans);
-  font-synthesis-weight: none;
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 1.0625rem/1.65 var(--font);
+  font-kerning: normal;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--malam);
+  color: var(--tinta);
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
   border-radius: 2px;
 }
 
 a {
   color: inherit;
   text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--baseline);
-  text-underline-offset: 0.18em;
+  text-decoration-color: var(--underline);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.24em;
 }
 
 a:hover {
-  text-decoration-color: currentColor;
+  text-decoration-thickness: 3px;
 }
 
 .skip {
   position: absolute;
-  left: -9999px;
+  left: -100vw;
 }
 
 .skip:focus {
-  position: fixed;
   left: 1rem;
   top: 1rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  color: var(--ink);
-  text-decoration: none;
+  z-index: 10;
+  padding: 0.5rem 0.9rem;
+  background: var(--malam);
+  color: var(--tinta);
 }
 
-/* ---------- headings and rhythm ---------- */
+/* ---------- cloth ---------- */
+
+[data-cloth] {
+  position: relative;
+  overflow: hidden;
+  background: var(--nila);
+}
+
+/* With script on, a cloth starts as bare cotton and cloth.js dyes it.
+   If the script never arrives, the still pattern fades in anyway. */
+.js [data-cloth] {
+  background: var(--mori);
+}
+
+.cloth-still,
+.cloth-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.js [data-cloth]:not(.is-live) > .cloth-still {
+  opacity: 0;
+  animation: appear 0.4s ease 2.5s forwards;
+}
+
+[data-cloth].is-live > .cloth-still {
+  display: none;
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------- type ---------- */
 
 h1,
 h2,
 h3 {
+  margin: 0;
   color: var(--ink);
-  font-weight: 600;
-  letter-spacing: -0.011em;
   text-wrap: balance;
 }
 
 h1 {
-  font-size: 2.125rem;
-  line-height: 1.12;
-  letter-spacing: -0.022em;
-  margin: 0 0 0.85rem;
+  margin: clamp(3rem, 10vh, 6rem) 0 1.5rem;
+  font-size: clamp(2.4rem, 1.2rem + 4.2vw, 4rem);
+  font-weight: 780;
+  line-height: 1;
+  letter-spacing: -0.035em;
 }
 
-h2 {
-  font-size: 1.25rem;
-  line-height: 1.3;
-  margin: 2.25rem 0 0.75rem;
+article h2 {
+  margin: 2.6rem 0 0.7rem;
+  font-size: 1.45rem;
+  font-weight: 720;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
-h3 {
-  font-size: 1.125rem;
-  line-height: 1.35;
+article h3 {
   margin: 2rem 0 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
 }
 
 p,
 ul,
 ol,
-blockquote {
-  margin: 0 0 1.15rem;
-}
-
-ul,
-ol {
-  padding-left: 1.15rem;
-}
-
-li {
-  margin-bottom: 0.3rem;
+blockquote,
+pre {
+  margin: 0 0 1.2rem;
 }
 
 p,
@@ -179,227 +203,221 @@ li {
   text-wrap: pretty;
 }
 
+ul,
+ol {
+  padding-left: 1.2rem;
+}
+
+li {
+  margin-bottom: 0.35rem;
+}
+
+li::marker {
+  color: var(--soga);
+}
+
 hr {
+  margin: 2.5rem 0;
   border: 0;
-  border-top: 1px solid var(--hairline);
-  margin: 3rem 0;
+  border-top: 1px solid var(--rule);
 }
 
 blockquote {
-  margin-left: 0;
-  padding-left: 1.15rem;
-  border-left: 1px solid var(--baseline);
-  color: var(--ink-muted);
+  padding-left: 1.1rem;
+  border-left: 2px solid var(--soga);
+  color: var(--muted);
+}
+
+code {
+  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+  font-size: 0.88em;
+}
+
+:not(pre) > code {
+  padding: 0.1em 0.3em;
+  background: var(--code-bg);
+  border-radius: 3px;
+}
+
+pre {
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  background: var(--code-bg);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+pre code {
+  font-size: inherit;
 }
 
 article > :last-child {
   margin-bottom: 0;
 }
 
-/* ---------- code ---------- */
+/* ---------- nav ---------- */
 
-code {
-  font-family: var(--font-mono);
-  font-size: 0.875em;
-  font-variant-ligatures: none;
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.4rem;
+  font-size: 0.9375rem;
 }
 
-p code,
-li code,
-blockquote code {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  padding: 0.1em 0.35em;
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
 }
 
-pre {
-  background: var(--surface-1);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: 1rem 1.15rem;
-  margin: 0 0 1.25rem;
-  overflow-x: auto;
+.nav a:hover {
+  color: var(--ink);
 }
 
-pre code {
-  font-size: 0.8125rem;
-  line-height: 1.65;
+.nav a[aria-current="page"] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--underline);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.4em;
 }
-
-/* ---------- header ---------- */
 
 .site-header {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
   align-items: baseline;
   justify-content: space-between;
-  padding-bottom: 1rem;
-  margin-bottom: 3rem;
-  border-bottom: 1px solid var(--hairline);
+  gap: 0.75rem 2rem;
+  padding-block: 2rem;
 }
 
 .brand {
-  color: var(--ink);
-  font-weight: 600;
-  letter-spacing: -0.015em;
+  font-weight: 700;
   text-decoration: none;
+  letter-spacing: -0.01em;
 }
 
-.site-header nav {
+/* ---------- reading pages: a selvedge down the left ---------- */
+
+body.page {
+  padding-left: var(--selvedge);
+}
+
+.cloth-selvedge {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--selvedge);
+}
+
+.page .site-header,
+.page main,
+.page .site-footer {
+  margin-left: var(--edge);
+  margin-right: var(--edge);
+}
+
+.page .site-header {
+  max-width: 58rem;
+}
+
+.page main {
+  max-width: var(--measure);
+}
+
+.post-meta {
   display: flex;
-  gap: 1.35rem;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: -0.5rem 0 2.5rem;
+  color: var(--muted);
   font-size: 0.9375rem;
-}
-
-.site-header nav a {
-  border-bottom: 2px solid transparent;
-  padding-bottom: 0.15rem;
-  color: var(--ink-muted);
-  text-decoration: none;
-}
-
-.site-header nav a:hover {
-  color: var(--ink);
-}
-
-.site-header nav a[aria-current="page"] {
-  border-bottom-color: var(--accent);
-  color: var(--ink);
-}
-
-/* ---------- page blocks ---------- */
-
-.lede {
-  max-width: var(--lede-measure);
-  color: var(--ink-2);
-  font-size: 1.1875rem;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.section {
-  margin-top: 3.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--hairline);
-}
-
-.section > h2 {
-  font-size: 0.875rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  color: var(--ink-muted);
-  margin: 0 0 1.5rem;
-}
-
-.section > p:last-child {
-  margin: 1.5rem 0 0;
-  font-size: 0.9375rem;
-}
-
-/* ---------- post rows ---------- */
-
-.post-list {
-  list-style: none;
-  margin: 1.75rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1.6rem;
-}
-
-.post-item {
-  display: grid;
-  grid-template-columns: 6.5rem 1fr;
-  gap: 0.25rem 1.5rem;
-  align-items: baseline;
-}
-
-.post-date {
-  color: var(--ink-muted);
-  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
 }
 
-.post-title {
-  font-size: 1.125rem;
-  margin: 0 0 0.3rem;
+.back-link {
+  margin-top: 3.5rem;
 }
 
-.post-summary {
-  margin: 0;
-  color: var(--ink-2);
-  font-size: 0.9375rem;
-  line-height: 1.55;
+.lede {
+  color: var(--muted);
 }
 
-/* ---------- projects ---------- */
+/* ---------- lists ---------- */
 
+.post-list,
 .project-list {
-  list-style: none;
-  margin: 1.75rem 0 0;
+  margin: 0;
   padding: 0;
+  list-style: none;
 }
 
+.post-item,
 .project {
-  padding: 1.6rem 0;
-  border-top: 1px solid var(--hairline);
+  margin: 0;
+  padding-block: 1.5rem;
+  border-top: 1px solid var(--rule);
 }
 
-.project:first-child {
+.post-list > :first-child,
+.project-list > :first-child {
   border-top: 0;
   padding-top: 0;
 }
 
-.project:last-child {
-  padding-bottom: 0;
-}
-
+.post-title,
+.project h2,
 .project h3 {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.25rem;
+  font-weight: 680;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
 }
 
+.post-title a,
+.project h2 a,
+.project h3 a {
+  text-decoration-color: transparent;
+}
+
+.post-title a:hover,
+.project h2 a:hover,
+.project h3 a:hover {
+  text-decoration-color: var(--underline);
+}
+
+.post-summary,
 .project-desc {
-  max-width: 58ch;
+  margin: 0 0 0.4rem;
+  color: var(--muted);
+  max-width: 34rem;
+}
+
+.post-date,
+.project-meta {
   margin: 0;
-  color: var(--ink-2);
-  font-size: 0.9375rem;
-  line-height: 1.55;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.project {
+  display: grid;
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
 }
 
 .project-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem 1.25rem;
-  margin: 0.7rem 0 0;
-  color: var(--ink-muted);
-  font-size: 0.875rem;
+  gap: 0.25rem 1.25rem;
 }
 
-/* ---------- article ---------- */
-
-.post-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem 1.25rem;
-  padding-bottom: 0.85rem;
-  margin: 0 0 2rem;
-  border-bottom: 1px solid var(--hairline);
-  color: var(--ink-muted);
-  font-size: 0.875rem;
-}
-
-.post-meta time {
-  font-variant-numeric: tabular-nums;
-}
-
-.back-link {
-  margin: 2.5rem 0 0;
-  font-size: 0.9375rem;
+/* A fabric sample, cut with pinking shears. */
+.swatch {
+  width: 4.75rem;
+  aspect-ratio: 1;
+  clip-path: polygon(0% 0%, 5% 5%, 10% 0%, 15% 5%, 20% 0%, 25% 5%, 30% 0%, 35% 5%, 40% 0%, 45% 5%, 50% 0%, 55% 5%, 60% 0%, 65% 5%, 70% 0%, 75% 5%, 80% 0%, 85% 5%, 90% 0%, 95% 5%, 100% 0%, 95% 5%, 100% 10%, 95% 15%, 100% 20%, 95% 25%, 100% 30%, 95% 35%, 100% 40%, 95% 45%, 100% 50%, 95% 55%, 100% 60%, 95% 65%, 100% 70%, 95% 75%, 100% 80%, 95% 85%, 100% 90%, 95% 95%, 100% 100%, 95% 95%, 90% 100%, 85% 95%, 80% 100%, 75% 95%, 70% 100%, 65% 95%, 60% 100%, 55% 95%, 50% 100%, 45% 95%, 40% 100%, 35% 95%, 30% 100%, 25% 95%, 20% 100%, 15% 95%, 10% 100%, 5% 95%, 0% 100%, 5% 95%, 0% 90%, 5% 85%, 0% 80%, 5% 75%, 0% 70%, 5% 65%, 0% 60%, 5% 55%, 0% 50%, 5% 45%, 0% 40%, 5% 35%, 0% 30%, 5% 25%, 0% 20%, 5% 15%, 0% 10%, 5% 5%);
 }
 
 /* ---------- footer ---------- */
@@ -409,11 +427,12 @@ pre code {
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.5rem 1.5rem;
-  margin-top: 4.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--hairline);
-  color: var(--ink-muted);
+  gap: 0.75rem 2rem;
+  max-width: 58rem;
+  margin-top: 7rem;
+  padding-block: 1.75rem 3rem;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
   font-size: 0.875rem;
 }
 
@@ -423,36 +442,251 @@ pre code {
 
 .footer-links {
   display: flex;
-  flex-wrap: wrap;
   gap: 1.25rem;
-  list-style: none;
   margin: 0;
   padding: 0;
+  list-style: none;
 }
 
 .footer-links li {
   margin: 0;
 }
 
-@media (max-width: 34rem) {
-  body {
-    padding: 2.25rem 1.15rem 3.5rem;
-    font-size: 16px;
+.placard {
+  font-style: italic;
+}
+
+.site-footer .placard {
+  flex-basis: 100%;
+}
+
+/* ---------- home: the whole first screen is cloth ---------- */
+
+.home {
+  --edge: clamp(1.25rem, 3vw, 2.75rem);
+}
+
+.hero {
+  --focus: var(--malam);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: max(100svh, 34rem);
+  padding: var(--edge);
+  color: var(--mori);
+  isolation: isolate;
+}
+
+.hero > :not(.cloth-still, .cloth-canvas) {
+  position: relative;
+  z-index: 1;
+}
+
+.hero .nav {
+  justify-self: end;
+}
+
+.hero .nav a,
+.hero .nav a:hover,
+.hero .nav a[aria-current="page"] {
+  color: var(--mori);
+  text-decoration-color: var(--malam);
+}
+
+.hero-name {
+  align-self: end;
+  margin: 0 0 clamp(1.5rem, 5vh, 3.5rem);
+  color: var(--mori);
+  font-size: clamp(3.25rem, 12.4vw, 13.5rem);
+  font-weight: 800;
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+}
+
+.hero-name .line {
+  display: block;
+  white-space: nowrap;
+}
+
+/* On the still cloth, text sits on plain dyed patches, as the live
+   cloth leaves the motif out around it. */
+html:not(.js) .hero :is(.nav, .hero-name .line, .hero-foot p),
+html:not(.js) .lost .site-header > * {
+  width: fit-content;
+  background: var(--nila);
+  box-shadow: 0 0 0 0.6rem var(--nila);
+}
+
+/* The cloth paints the name as wax; the text stays for reading,
+   selecting and copying. */
+.js .hero-name {
+  color: transparent;
+}
+
+.js .hero:not(.is-live) .hero-name {
+  animation: name-appears 0.4s ease 2.5s forwards;
+}
+
+@keyframes name-appears {
+  to {
+    color: var(--mori);
+  }
+}
+
+.hero-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  font-size: 0.8125rem;
+  color: rgb(232 231 225 / 0.8);
+}
+
+.hero-foot p {
+  margin: 0;
+}
+
+.cloth-hint {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero.is-live .cloth-hint {
+    visibility: visible;
+  }
+}
+
+.sheet {
+  padding: clamp(4.5rem, 14vh, 9rem) var(--edge) 0;
+}
+
+.intro {
+  max-width: 24ch;
+  margin: 0 0 clamp(4rem, 12vh, 7.5rem);
+  font-size: clamp(1.5rem, 1rem + 1.8vw, 2.25rem);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.shelf {
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) minmax(0, var(--measure));
+  gap: 1rem 2rem;
+  padding-block: 2.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+.shelf > h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.9;
+}
+
+.more {
+  margin: 1.5rem 0 0;
+}
+
+.home .site-footer {
+  max-width: none;
+  margin-inline: var(--edge);
+}
+
+/* ---------- 404: a hole burned through the cloth ---------- */
+
+.cloth-lost {
+  position: fixed;
+  inset: 0;
+}
+
+.lost {
+  --edge: clamp(1.25rem, 3vw, 2.75rem);
+  --focus: var(--malam);
+}
+
+.lost .site-header {
+  position: relative;
+  z-index: 1;
+  padding-inline: var(--edge);
+  color: var(--mori);
+}
+
+.lost .site-header .nav a {
+  color: var(--mori);
+}
+
+main.lost {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-height: calc(100svh - 12rem);
+  padding: 0 var(--edge) 4rem;
+}
+
+.hole {
+  --focus: #8a5d0a;
+  display: grid;
+  place-content: center;
+  width: min(78vw, 60svh, 26rem);
+  aspect-ratio: 1;
+  padding: 2rem;
+  border-radius: 50%;
+  background: var(--bg);
+  text-align: center;
+}
+
+.cloth-lost.is-live ~ main .hole {
+  background: none;
+}
+
+.hole h1 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(2rem, 1.4rem + 2.5vw, 3rem);
+}
+
+.hole p {
+  margin: 0 0 0.4rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hole {
+    --focus: var(--malam);
+  }
+}
+
+/* ---------- narrow screens: the selvedge runs across the top ---------- */
+
+@media (max-width: 40rem) {
+  :root {
+    --edge: 1.25rem;
   }
 
-  h1 {
-    font-size: 1.75rem;
+  body.page {
+    padding-left: 0;
   }
 
-  .post-item {
-    grid-template-columns: 1fr;
+  .cloth-selvedge {
+    position: absolute;
+    inset: 0 0 auto 0;
+    width: auto;
+    height: 2.5rem;
   }
 
-  .post-date {
-    order: -1;
+  .page .site-header {
+    padding-top: 4rem;
   }
 
-  pre code {
-    font-size: 0.75rem;
+  .shelf {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project {
+    grid-template-columns: 3.75rem minmax(0, 1fr);
+    gap: 1.1rem;
+  }
+
+  .swatch {
+    width: 3.75rem;
   }
 }
