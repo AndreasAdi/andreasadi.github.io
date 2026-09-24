@@ -722,6 +722,113 @@ th {
   clip-path: inset(50%);
 }
 
+/* ---------- link hints (s) ---------- */
+
+.hint-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Labels stay neutral while there are many of them on screen at once —
+   the accent is reserved for the ones still matching what you have typed,
+   so it keeps meaning "this is where you are going". */
+.hint-label {
+  position: fixed;
+  padding: 0 0.4ch;
+  background: var(--ink);
+  color: var(--pane);
+  font-size: 0.8667rem;
+  line-height: var(--line);
+  letter-spacing: 0.06em;
+}
+
+.hint-label.is-match {
+  background: var(--accent);
+  color: var(--ground);
+}
+
+.hint-label.is-out {
+  opacity: 0.3;
+}
+
+/* ---------- help sheet (?) ---------- */
+
+.help {
+  width: min(56ch, calc(100vw - 4ch));
+  max-height: 80vh;
+  padding: 0;
+  border: 1px solid var(--rule-hi);
+  background: var(--pane);
+  color: var(--ink);
+  font: 1rem / var(--line) var(--font);
+}
+
+.help::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.help-bar {
+  display: flex;
+  align-items: center;
+  height: var(--bar);
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 0.8667rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.help-bar .pane-close {
+  margin-left: auto;
+}
+
+.help-body {
+  padding: var(--line) var(--pad);
+  overflow-y: auto;
+}
+
+.help dl {
+  display: grid;
+  grid-template-columns: 9ch minmax(0, 1fr);
+  gap: 0 1ch;
+  margin: 0;
+}
+
+.help dt {
+  font-size: 0.8667rem;
+  line-height: var(--line);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.help dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+.help-note {
+  max-width: var(--measure);
+  margin: var(--line) 0 0;
+  color: var(--muted);
+}
+
+.statusbar .keys {
+  padding: 0 0.5ch;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.statusbar .keys:hover {
+  color: var(--ink);
+}
+
 /* ---------- narrow ---------- */
 
 @media (max-width: 40rem) {

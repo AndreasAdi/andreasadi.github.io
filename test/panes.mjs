@@ -127,6 +127,14 @@ const click = async (selector) => {
   await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
   await sleep(600);
 };
+const key = async (k, modifiers = 0) => {
+  const printable = k.length === 1;
+  const code = k === "?" ? 191 : printable ? k.toUpperCase().charCodeAt(0) : k === "Escape" ? 27 : 0;
+  const base = { modifiers, key: k, windowsVirtualKeyCode: code, nativeVirtualKeyCode: code };
+  await send("Input.dispatchKeyEvent", { type: "keyDown", ...base, ...(printable ? { text: k } : {}) });
+  await send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+  await sleep(250);
+};
 const shot = async (name) => {
   if (!SHOTS) return;
   const { data } = await send("Page.captureScreenshot", { format: "png" });
@@ -233,6 +241,60 @@ await go("/");
 s = await state();
 check("a narrow viewport stays a plain document", s.count === 0, s);
 check("a narrow viewport still renders content", await evaluate(`!!document.querySelector("#main .post-list")`));
+
+// phase 3: the key map, hints and the help sheet
+await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 860, deviceScaleFactor: 1, mobile: false });
+await go("/");
+await click('.pane a[href="/posts/building-this-site/"]');
+await key("h");
+check("h moves focus left", (await state()).focused === 0, await state());
+await key("l");
+check("l moves focus right", (await state()).focused === 1, await state());
+await key("1");
+check("a number focuses that pane", (await state()).focused === 0, await state());
+check("focus moves are announced", await evaluate(`document.querySelector(".statusbar .sr-only").textContent.includes("Pane 1 of 2")`));
+await key("j");
+await key("j");
+check("j scrolls the focused pane", await evaluate(`document.querySelectorAll(".pane-body")[0].scrollTop > 0`));
+await key("k");
+await key("k");
+check("k scrolls it back", await evaluate(`document.querySelectorAll(".pane-body")[0].scrollTop === 0`));
+await key("g");
+check("g jumps to the nav", await evaluate(`!!document.activeElement.closest(".nav")`));
+
+await key("?", 8);
+check("? opens the help sheet", await evaluate(`document.querySelector(".help")?.open === true`));
+check("the sheet lists every binding", await evaluate(`document.querySelectorAll(".help dt").length === 8`));
+check("the sheet is actually on screen", await evaluate(`(() => {
+  const r = document.querySelector(".help").getBoundingClientRect();
+  return r.width > 200 && r.height > 100 && r.top >= 0 && r.bottom <= innerHeight;
+})()`));
+await shot("help-sheet");
+await key("Escape");
+check("escape closes the sheet", await evaluate(`document.querySelector(".help").open === false`));
+check("closing the sheet returns focus where it was", await evaluate(`!!document.activeElement.closest(".nav")`));
+
+await evaluate(`document.querySelectorAll(".pane")[0].focus()`);
+await key("s");
+check("s labels the links in the focused pane", await evaluate(`document.querySelectorAll(".hint-label").length > 0`));
+await shot("link-hints");
+const label = await evaluate(`document.querySelector('.pane.is-focused .pane-body a[href="/projects/"]').dataset.hint`);
+check("every hinted link carries its label", typeof label === "string" && label.length > 0, label);
+for (const ch of label) await key(ch);
+await sleep(500);
+let k = await state();
+check("typing a label opens that link", k.titles.includes("Projects"), k);
+check("the labels clear after use", await evaluate(`document.querySelectorAll(".hint-label").length === 0`));
+
+await key("s");
+await key("Escape");
+check("escape leaves link hints", await evaluate(`document.querySelectorAll(".hint-label").length === 0 && !document.querySelector("[data-hint]")`));
+
+const before = (await state()).count;
+await key("x", 2);
+check("a modified key is left to the browser", (await state()).count === before, await state());
+await key("x");
+check("x closes the focused pane", (await state()).count === before - 1, await state());
 
 // the layer everything else rests on: without scripts it is a plain document
 await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 860, deviceScaleFactor: 1, mobile: false });

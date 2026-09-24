@@ -121,6 +121,20 @@ function fill(pane, data) {
   if (data.glyph !== undefined) pane.glyphEl.innerHTML = adoptGlyph(data.glyph);
   pane.body.className = "pane-body";
   pane.body.innerHTML = data.body;
+  markExternal(pane.body);
+}
+
+// A cross-origin link would navigate the whole shell away and take every
+// open pane with it. In the enhanced layer it gets its own tab; the plain
+// document is left alone, where losing a layout is not a risk.
+function markExternal(scope) {
+  for (const a of scope.querySelectorAll("a[href]")) {
+    const url = new URL(a.href, location.href);
+    if (url.protocol.startsWith("http") && url.origin !== location.origin) {
+      a.target = "_blank";
+      a.rel = `${a.rel ? a.rel + " " : ""}noopener`.trim();
+    }
+  }
 }
 
 const skeleton = () =>
@@ -326,6 +340,189 @@ async function restore() {
   return true;
 }
 
+/* ---------- keyboard ---------- */
+
+// Unmodified single keys. Legitimate only because the site has no text
+// inputs; see docs/ruang.md §3.1 for why this is not super+hjkl.
+const lineHeight = () => parseFloat(getComputedStyle(document.body).lineHeight) || 24;
+
+function onKey(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t instanceof Element && t.closest("input, textarea, select, [contenteditable=true]")) return;
+  if (hints) return hintKey(e);
+  if (help?.open) return; // the dialog handles its own Escape
+
+  const i = active;
+  const key = e.key;
+
+  if (key === "?") return act(e, () => openHelp());
+  if (key === "Escape") return;
+  if (key >= "1" && key <= "9") {
+    const n = Number(key) - 1;
+    if (n < panes.length) act(e, () => focusPane(n));
+    return;
+  }
+
+  switch (key) {
+    case "h":
+      return act(e, () => focusPane(i - 1));
+    case "l":
+      return act(e, () => focusPane(i + 1));
+    case "j":
+      return act(e, () => panes[i]?.body.scrollBy({ top: lineHeight() }));
+    case "k":
+      return act(e, () => panes[i]?.body.scrollBy({ top: -lineHeight() }));
+    case "x":
+      return act(e, () => close(i));
+    case "g":
+      return act(e, () => document.querySelector(".nav a")?.focus());
+    case "s":
+      return act(e, () => startHints());
+    default:
+  }
+}
+
+function act(e, fn) {
+  e.preventDefault();
+  fn();
+}
+
+function focusPane(i) {
+  if (i < 0 || i >= panes.length || i === active) return;
+  focus(i, { announce: true });
+  panes[i].el.focus({ preventScroll: true });
+}
+
+/* ---------- link hints ---------- */
+
+// Home row, so a label is never a reach. Two characters once a pane holds
+// more links than the row has keys.
+const HINT_KEYS = "asdfghjkl";
+
+let hints = null;
+
+function labelsFor(n) {
+  if (n <= HINT_KEYS.length) return [...HINT_KEYS].slice(0, n);
+  const out = [];
+  for (const a of HINT_KEYS) {
+    for (const b of HINT_KEYS) {
+      out.push(a + b);
+      if (out.length === n) return out;
+    }
+  }
+  return out;
+}
+
+function startHints() {
+  const pane = panes[active];
+  if (!pane) return;
+  const box = pane.body.getBoundingClientRect();
+  const links = [...pane.body.querySelectorAll("a[href]")].filter((a) => {
+    const r = a.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > box.top && r.top < box.bottom;
+  });
+  if (!links.length) return say("No links in view.");
+
+  const layer = document.createElement("div");
+  layer.className = "hint-layer";
+  const items = labelsFor(links.length).map((label, n) => {
+    const a = links[n];
+    const r = a.getBoundingClientRect();
+    const el = document.createElement("span");
+    el.className = "hint-label";
+    el.textContent = label.toUpperCase();
+    // sit to the left of the link rather than on top of its first letter,
+    // and never outside the pane it belongs to
+    el.style.left = `${Math.max(box.left + 2, r.left - (6 + label.length * 8))}px`;
+    el.style.top = `${r.top}px`;
+    el.setAttribute("aria-hidden", "true");
+    layer.append(el);
+    a.dataset.hint = label;
+    return { label, a, el };
+  });
+  document.body.append(layer);
+  hints = { items, layer, typed: "" };
+  pane.body.addEventListener("scroll", endHints, { once: true });
+  say(`Link hints. ${items.length} link${items.length === 1 ? "" : "s"}. Type a label, Escape to leave.`);
+}
+
+function endHints(message) {
+  if (!hints) return;
+  for (const i of hints.items) delete i.a.dataset.hint;
+  hints.layer.remove();
+  hints = null;
+  if (typeof message === "string") say(message);
+}
+
+function hintKey(e) {
+  e.preventDefault();
+  if (e.key === "Escape") return endHints("Link hints off.");
+  if (e.key === "Backspace") {
+    hints.typed = hints.typed.slice(0, -1);
+    return paintHints();
+  }
+  if (e.key.length !== 1 || !HINT_KEYS.includes(e.key.toLowerCase())) return;
+
+  hints.typed += e.key.toLowerCase();
+  const live = hints.items.filter((i) => i.label.startsWith(hints.typed));
+  if (!live.length) return endHints("No such label.");
+  const exact = live.find((i) => i.label === hints.typed);
+  if (!exact) return paintHints();
+
+  const { a } = exact;
+  endHints();
+  if (a.target === "_blank" || new URL(a.href, location.href).origin !== location.origin) {
+    a.click();
+  } else {
+    open(new URL(a.href, location.href).pathname);
+  }
+}
+
+function paintHints() {
+  for (const i of hints.items) {
+    const on = i.label.startsWith(hints.typed) && hints.typed !== "";
+    i.el.classList.toggle("is-match", on);
+    i.el.classList.toggle("is-out", hints.typed !== "" && !i.label.startsWith(hints.typed));
+  }
+}
+
+/* ---------- help ---------- */
+
+const BINDINGS = [
+  ["h l", "focus the pane left or right"],
+  ["1\u20133", "focus a pane by number"],
+  ["j k", "scroll the focused pane"],
+  ["s", "label the links in this pane, then type a label"],
+  ["x", "close the focused pane"],
+  ["g", "jump to the nav"],
+  ["?", "this sheet"],
+  ["esc", "leave link hints or this sheet"],
+];
+
+let help;
+let helpReturn;
+
+function openHelp() {
+  if (!help) {
+    help = document.createElement("dialog");
+    help.className = "help";
+    help.innerHTML = `<div class="help-bar"><span>Keys</span><button class="pane-close" type="button" title="Close">&#215;</button></div>
+<div class="help-body">
+  <dl>${BINDINGS.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>
+  <p class="help-note">A link opens a pane beside the one you are reading. Hold
+  ctrl, cmd or shift and it is the browser's click again. The panes you have
+  open are in the address bar, so a layout is something you can send to someone.</p>
+</div>`;
+    help.querySelector("button").addEventListener("click", () => help.close());
+    help.addEventListener("close", () => helpReturn?.focus({ preventScroll: true }));
+    document.body.append(help);
+  }
+  helpReturn = document.activeElement;
+  help.showModal();
+  say("Keys.");
+}
+
 /* ---------- boot ---------- */
 
 async function init() {
@@ -354,8 +551,16 @@ async function init() {
   live.setAttribute("aria-live", "polite");
   const hintEl = document.createElement("span");
   hintEl.className = "hint";
+  const keys = document.createElement("button");
+  keys.className = "keys";
+  keys.type = "button";
+  keys.textContent = "?";
+  keys.title = "Keys";
+  keys.addEventListener("click", () => openHelp());
+
   bar.prepend(indicators);
   bar.insertBefore(hintEl, bar.querySelector(".build")); // keep the sha last
+  bar.insertBefore(keys, bar.querySelector(".build"));
   bar.append(live);
 
   // Mount the sheet that is already here rather than fetching it again,
@@ -398,7 +603,11 @@ async function init() {
     }
   });
 
+  document.addEventListener("keydown", onKey);
+  markExternal(document.body);
+
   addEventListener("resize", () => {
+    if (hints) endHints();
     if (panes.length > capacity()) {
       evict(panes[active]);
       mount();

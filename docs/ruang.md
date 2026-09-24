@@ -332,7 +332,7 @@ treatment goes with the cloth.
 |---|---|
 | click internal link | open in a new pane to the right of the focused pane, and focus it |
 | `Ctrl`/`Cmd`/`Shift`+click, middle-click | left to the browser — new tab, new window (§3.2) |
-| click external link | new browser tab (`target=_blank rel="noopener"`) |
+| click external link | new browser tab — `target=_blank rel="noopener"`, set by `ruang.js` at boot and after every pane fill, not by the build, so the plain document keeps ordinary link behaviour |
 | click anywhere in a pane | focus that pane |
 | click pane title bar `×` | close |
 | drag gutter | resize the two neighbours |
@@ -350,17 +350,22 @@ a control. Bindings are listed in the `?` sheet and nowhere else on screen.
 |---|---|
 | `h` / `l` | focus pane left / right |
 | `j` / `k` | scroll focused pane down / up (native, one `--line` per press) |
-| `H` / `L` | resize: move the focused pane's right gutter by 4ch |
 | `s` | link-hint mode — label every link in the focused pane; typing a label opens it in a new pane |
 | `x` | close focused pane (never the last one) |
-| `f` | zoom focused pane / unzoom |
 | `1`–`3` | focus pane by index |
 | `g` | focus the nav |
 | `?` | help sheet |
 | `Escape` | exit zoom, hint mode, or help |
 
 `s` rather than `f` for hints because `f` is the window-manager verb for
-fullscreen and that association is stronger here than the vimium one.
+fullscreen and that association is stronger here than the vimium one — which is
+also why `f` stays unbound until phase 4 gives it a zoom to trigger. `H`/`L`
+(resize by 4ch) waits for the same phase: both keys need a feature this phase
+does not build, and a binding that does nothing is worse than a missing one.
+
+Phase 3 also leaves replace-in-place unbound. It was dropped from the pointer
+map in §3.2 and belongs on a key, but no obvious letter is free; it can take one
+alongside zoom.
 
 ### 9.3 Hit areas
 
@@ -440,8 +445,11 @@ pairs, tokens on `:root`, no preprocessor. Budget ≤8KB gzipped.
 
 **12.2 `assets/ruang.js`** — new, ES module, no dependencies. Owns: pane model,
 URL serialise/parse, fetch and cache, click interception, keyboard map, gutter
-drag, zoom, hint mode, live-region announcements. Budget ≤6KB gzipped. Plain DOM, in the
-house style. Shipped at 4.4KB gzipped.
+drag, zoom, hint mode, live-region announcements. Budget ≤8KB gzipped — raised
+from 6KB in phase 3, because the file ships unminified with its comments intact,
+the way the rest of the source does, and stripping them to hold a number I
+guessed before writing the code is the wrong trade. Plain DOM, in the
+house style.
 
 **12.3 `build.mjs`**
 
@@ -482,7 +490,7 @@ subset) plus its OFL, and a matching `<link rel=preload>`.
 | Metric | Budget |
 |---|---|
 | `style.css` | ≤8KB gzipped |
-| `ruang.js` | ≤6KB gzipped |
+| `ruang.js` | ≤8KB gzipped |
 | mono webfont | ≤45KB |
 | requests on first paint | unchanged from today |
 | requests per split | 1, then 0 (cached) |
@@ -505,9 +513,10 @@ headless Chromium; the rest are still by hand.
       pane 2 focused, with no flash of the single-pane document.
 - [x] Narrow viewport (`390px`): identical to a no-JS visit, no horizontal scroll,
       no viewport lock.
-- [ ] Keyboard only, no mouse: open two panes, move focus, resize, zoom, unzoom,
-      close — all reachable, focus always visible.
-- [ ] Screen reader announces each pane open with its position.
+- [x] Keyboard only, no mouse: open two panes, move focus, scroll, close, reach
+      every link by hint — all reachable, focus always visible. (Resize and zoom
+      are phase 4.)
+- [x] Screen reader announces each pane open with its position.
 - [ ] `prefers-reduced-motion`: no transitions run.
 - [ ] Both schemes: measured ratios in §4 hold; accent appears **only** on focus.
 - [x] Back button after two splits and a focus change returns through layouts,
@@ -529,9 +538,12 @@ coherent site.
 2. ~~**Pane engine.**~~ *Shipped.* Mount pane 0, click-to-split, close, focus,
    the URL contract, fetch and cache, error panes — plus the nav change in §6.1
    and the amendment in §3.2, both found while building it.
-3. **Keyboard.** Full key map, `?` sheet, live-region announcements, link hints.
-4. **Polish.** Gutter drag, zoom with stubs, `prefers-contrast`, the first-split
-   hint.
+3. ~~**Keyboard.**~~ *Shipped.* Key map, `?` sheet, live-region announcements,
+   link hints — plus `target=_blank` on external links (§9.1), without which one
+   click on a GitHub link took every open pane with it.
+4. **Polish.** Gutter drag and the `H`/`L` resize keys, zoom with stubs and `f`,
+   a key for replace-in-place. `prefers-contrast` landed in phase 1 and the
+   first-split hint in phase 2.
 
 ## 16. Open questions
 
