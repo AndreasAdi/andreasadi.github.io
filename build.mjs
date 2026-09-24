@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, copyFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Marked } from "marked";
@@ -6,10 +7,21 @@ import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
 import { site } from "./site.js";
 import { projects } from "./projects.js";
-import { motif, stillSVG, COLORS } from "./assets/motif.js";
+import { motif, glyphSVG, COLORS } from "./lib/motif.js";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const OUT = join(ROOT, "dist");
+
+// The status bar names the build. Local dirty trees and Actions checkouts
+// both have to work, so fall through rather than fail.
+const BUILD = (() => {
+  const r = spawnSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" });
+  const sha = r.status === 0 ? r.stdout.trim() : "";
+  return sha || process.env.GITHUB_SHA?.slice(0, 7) || "dev";
+})();
+
+// Matches --ground / --pane in assets/style.css.
+const THEME = { dark: "#0b0c0d", light: "#f6f5f2" };
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -28,9 +40,6 @@ const marked = new Marked(
 const esc = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const abs = (p) => new URL(p, site.url).href;
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const prettyDate = (iso) =>
-  `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}, ${iso.slice(0, 4)}`;
 const write = (relPath, contents) => {
   const target = join(OUT, relPath);
   mkdirSync(dirname(target), { recursive: true });
@@ -163,23 +172,18 @@ const NAV = [
   ["About", "/about/", "about"],
 ];
 
-const nav = (section, attrs = "") => `<nav class="nav" aria-label="Main"${attrs}>
+const nav = (section) => `<nav class="nav" aria-label="Main">
     ${NAV.map(
       ([label, href, key]) => `<a href="${href}"${key === section ? ' aria-current="page"' : ""}>${label}</a>`
     ).join("\n    ")}
   </nav>`;
 
-// A cloth is any element with data-cloth: the build ships a still of its
-// motif, and cloth.js paints the live version over it.
-let clothCount = 0;
-const cloth = (kind, seed) => {
+// A page's address picks its motif, as it did when the whole page was
+// cloth. Now it is a 14px glyph: enough to tell two panes apart.
+let glyphCount = 0;
+const glyph = (seed) => {
   const m = motif(seed);
-  return {
-    m,
-    attrs: `data-cloth="${kind}" data-seed="${esc(seed)}"`,
-    still: stillSVG(m, `cloth-${++clothCount}`),
-    label: `${m.name} no. ${m.number}. Indigo and soga on cotton.`,
-  };
+  return `<span class="glyph-box" title="${esc(`${m.name} no. ${m.number}`)}">${glyphSVG(m, `g${++glyphCount}`)}</span>`;
 };
 
 const favicon = (() => {
@@ -190,45 +194,22 @@ const favicon = (() => {
   return `data:image/svg+xml,${svg.replace(/#/g, "%23").replace(/</g, "%3C").replace(/>/g, "%3E")}`;
 })();
 
-const footer = (label) => `<footer class="site-footer">
-  <p>© ${new Date().getFullYear()} ${esc(site.author)}</p>
-  <ul class="footer-links">
+// The status bar. Phase 1 renders it as a static footer; phase 2 pins it
+// to the bottom of the shell. Either way it carries what the footer did.
+const statusbar = () => `<footer class="statusbar">
+  <span>© ${new Date().getFullYear()} ${esc(site.author)}</span>
+  <ul>
     <li><a href="${site.github}">GitHub</a></li>
     <li><a href="mailto:${site.email}">Email</a></li>
     <li><a href="/feed.xml">RSS</a></li>
-  </ul>${label ? `\n  <p class="placard">This page’s cloth: ${esc(label)}</p>` : ""}
+  </ul>
+  <span class="build" title="build">${esc(BUILD)}</span>
 </footer>`;
 
-// variant "home": content brings its own hero. "page": selvedge + header.
-// "lost": the whole sheet is cloth, with a hole burned through it.
-function layout({ title, description, path, content, section, type = "website", variant = "page" }) {
+// Every page is the same shape: header, one sheet, status bar. Phase 2
+// mounts the sheet as pane 0 from data-pane-*, without refetching it.
+function layout({ title, description, path, content, section, type = "website", paneTitle }) {
   const docTitle = title === site.title ? `${site.title} — ${site.tagline}` : `${title} — ${site.title}`;
-  let body;
-  if (variant === "home") {
-    body = `${content}
-${footer()}`;
-  } else if (variant === "lost") {
-    const c = cloth("lost", path);
-    body = `<div class="cloth cloth-lost" ${c.attrs}>${c.still}</div>
-<header class="site-header">
-  <a class="brand" href="/" data-clear>${esc(site.title)}</a>
-  ${nav(section, " data-clear")}
-</header>
-<main id="main" class="lost">
-${content}
-</main>`;
-  } else {
-    const c = cloth("selvedge", path);
-    body = `<div class="cloth cloth-selvedge" ${c.attrs}>${c.still}</div>
-<header class="site-header">
-  <a class="brand" href="/">${esc(site.title)}</a>
-  ${nav(section)}
-</header>
-<main id="main">
-${content}
-</main>
-${footer(c.label)}`;
-  }
   return `<!DOCTYPE html>
 <html lang="${site.language}">
 <head>
@@ -236,7 +217,8 @@ ${footer(c.label)}`;
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(docTitle)}</title>
 <meta name="description" content="${esc(description)}">
-<meta name="theme-color" content="${COLORS.nila}">
+<meta name="theme-color" content="${THEME.light}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="${THEME.dark}" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="${abs(path)}">
 <meta property="og:type" content="${type}">
 <meta property="og:title" content="${esc(title)}">
@@ -245,15 +227,21 @@ ${footer(c.label)}`;
 <meta name="twitter:card" content="summary">
 <link rel="alternate" type="application/rss+xml" title="${esc(site.title)}" href="/feed.xml">
 <link rel="icon" href="${favicon}">
-<link rel="preload" href="/fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/highlight.css">
 <script>document.documentElement.classList.add("js")</script>
-<script type="module" src="/cloth.js"></script>
 </head>
-<body class="${variant}">
+<body>
 <a class="skip" href="#main">Skip to content</a>
-${body}
+<header class="site-header">
+  <a class="brand" href="/">${glyph("/")}${esc(site.title)}</a>
+  ${nav(section)}
+</header>
+<main id="main" data-pane-path="${esc(path)}" data-pane-title="${esc(paneTitle ?? title)}">
+${content}
+</main>
+${statusbar()}
 </body>
 </html>
 `;
@@ -262,25 +250,21 @@ ${body}
 /* ---------- partials ---------- */
 
 const postItem = (p, h = "h2") => `<li class="post-item">
+  <time class="post-date" datetime="${p.date}">${p.date}</time>
   <${h} class="post-title"><a href="/posts/${p.slug}/">${esc(p.title)}</a></${h}>
-  <p class="post-summary">${esc(p.summary)}</p>
-  <time class="post-date" datetime="${p.date}">${prettyDate(p.date)}</time>
+  <p class="post-summary">${esc(p.summary)}</p>${
+    p.tags.length ? `\n  <span class="post-tags">${p.tags.map(esc).join(", ")}</span>` : ""
+  }
 </li>`;
 
-const projectItem = (p, h = "h2") => {
-  const c = cloth("swatch", p.repo);
-  return `<li class="project">
-  <div class="swatch" ${c.attrs} title="${esc(c.label)}">${c.still}</div>
-  <div class="project-body">
-    <${h}><a href="${p.repo}">${esc(p.name)}</a></${h}>
-    <p class="project-desc">${esc(p.description)}</p>
-    <p class="project-meta">
-      <span>${p.tags.map(esc).join(", ")}</span>
-      ${p.url ? `<a href="${p.url}">Live site</a>` : ""}
-    </p>
-  </div>
+const projectItem = (p, h = "h2") => `<li class="project">
+  ${glyph(p.repo)}
+  <${h} class="project-name"><a href="${p.repo}">${esc(p.name)}</a></${h}>
+  <p class="project-desc">${esc(p.description)}</p>
+  <p class="project-meta">
+    <span>${p.tags.map(esc).join(", ")}</span>${p.url ? `\n    <a href="${p.url}">Live site</a>` : ""}
+  </p>
 </li>`;
-};
 
 /* ---------- pages ---------- */
 
@@ -290,50 +274,44 @@ const featured = allProjects.filter((p) => p.featured);
 const newest = posts.length ? posts[0].date : new Date().toISOString().slice(0, 10);
 
 {
-  const hero = cloth("hero", "/");
-  const words = site.author.split(" ");
-  const last = words.pop();
-  const home = `<header class="hero" ${hero.attrs}>
-  ${hero.still}
-  ${nav("home", " data-clear")}
-  <h1 class="hero-name" data-wax><span class="line">${esc(words.join(" "))}</span> <span class="line">${esc(last)}</span></h1>
-  <div class="hero-foot">
-    <p class="cloth-hint" data-clear>Drag across the cloth to draw with wax.</p>
-    <p class="placard" data-clear>${esc(hero.label)}</p>
-  </div>
-</header>
-<main id="main" class="sheet">
-<p class="intro">${esc(site.tagline)}</p>
-<section class="shelf" aria-labelledby="latest-posts">
-  <h2 id="latest-posts">Posts</h2>
+  const shelf = (id, label, body) => `<section class="shelf" aria-labelledby="${id}">
+  <h2 id="${id}">${label}</h2>
   <div>
-${
+${body}
+  </div>
+</section>`;
+  const home = `<h1 class="ident">${esc(site.author)}</h1>
+<p class="intro">${esc(site.tagline)}</p>
+${shelf(
+  "latest-posts",
+  "Posts",
   posts.length
     ? `  <ul class="post-list">
 ${posts.slice(0, 3).map((p) => postItem(p, "h3")).join("\n")}
   </ul>
   <p class="more"><a href="/posts/">All posts</a></p>`
     : `  <p>No posts yet.</p>`
-}
-  </div>
-</section>
-<section class="shelf" aria-labelledby="selected-projects">
-  <h2 id="selected-projects">Projects</h2>
-  <div>
-${
+)}
+${shelf(
+  "selected-projects",
+  "Projects",
   featured.length
     ? `  <ul class="project-list">
 ${featured.map((p) => projectItem(p, "h3")).join("\n")}
   </ul>
   <p class="more"><a href="/projects/">All projects</a></p>`
     : `  <p>No projects yet.</p>`
-}
-  </div>
-</section>
-</main>`;
+)}`;
   write(
     "index.html",
-    layout({ title: site.title, description: site.description, path: "/", content: home, section: "home", variant: "home" })
+    layout({
+      title: site.title,
+      description: site.description,
+      path: "/",
+      content: home,
+      section: "home",
+      paneTitle: "Home",
+    })
   );
 }
 
@@ -357,6 +335,7 @@ ${posts.map((p) => postItem(p)).join("\n")}
 
 for (const post of posts) {
   const tags = post.tags.length ? `<span>${post.tags.map(esc).join(", ")}</span>` : "";
+  const updated = post.updated ? `<span>updated ${post.updated}</span>` : "";
   write(
     `posts/${post.slug}/index.html`,
     layout({
@@ -368,8 +347,9 @@ for (const post of posts) {
       content: `<article>
   <h1>${esc(post.title)}</h1>
   <p class="post-meta">
-    <time datetime="${post.date}">${prettyDate(post.date)}</time>
+    <time datetime="${post.date}">${post.date}</time>
     ${tags}
+    ${updated}
   </p>
   ${post.html}
 </article>
@@ -420,12 +400,9 @@ write(
     description: "That page does not exist.",
     path: "/404.html",
     section: "",
-    variant: "lost",
-    content: `<div class="hole" data-hole>
-  <h1>Not found</h1>
-  <p>That page does not exist.</p>
-  <p><a href="/">Back home</a></p>
-</div>`,
+    content: `<h1>Not found</h1>
+<p class="lede">That page does not exist.</p>
+<p><a href="/">Back home</a></p>`,
   })
 );
 

@@ -12,10 +12,10 @@ TypeScript, Flutter, or QML when a desktop or mobile client needs building. I
 run Omarchy on my laptop and like boring tools that do one thing well.
 
 This site is hand-built: a small Node script turns Markdown into HTML and GitHub
-Pages serves the result. There is no framework and no database. Each page is
-also a piece of batik: a small WebGL script dyes a kawung, parang or truntum
-cloth chosen from the page's address, and lets you draw on it with wax. Without
-WebGL you see a still of the same cloth.
+Pages serves the result. There is no framework and no database. It is dressed as
+the machine I work on — monospace, hairlines, one status bar along the bottom —
+and the batik that used to cover every page survives at sixteen pixels: a
+kawung, parang or truntum glyph, still picked from the page's address.
 
 You can find me on [GitHub](https://github.com/AndreasAdi) or by
 [email](mailto:andreas@andreasadi.xyz).

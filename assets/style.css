@@ -1,109 +1,128 @@
 /* ---------------------------------------------------------------
-   Andreas Adi — Wastra
+   Andreas Adi — Ruang (docs/ruang.md)
 
-   Each page is a cloth in the dye bath. The cloth (cloth.js, with a
-   still SVG from the build underneath) is the one loud thing; the
-   reading surface around it is flat cotton, or indigo after dark.
+   Ruang is Indonesian for room, and for space. The site is dressed as
+   the machine it was built on: hairlines, a character grid, one
+   status bar along the bottom, and no ornament that is not structure.
 
-   Colours are the materials of batik: nila (indigo), mori (undyed
-   cotton), soga (the brown second dye) and malam (wax). Wax marks
-   what you do: selection, focus, the trail of your pointer.
+   Three rules, in priority order:
 
-   Measured pairs: tinta on mori 13.7:1, muted on mori 5.5:1, soga on
-   mori 5.98:1, focus on mori 4.6:1; mori on nila-tua 14.2:1, muted
-   on nila-tua 7.6:1, mori on nila 11:1.
+   1. Focus is the only ornament. --accent marks where you are and
+      nothing else: the focus ring, the current page, selected text.
+      Phase 2 gives it the focused pane's border. It is never
+      decoration.
+   2. Structure over depth. No shadows, no gradients, no radii, no
+      blur. Interest comes from alignment and density.
+   3. Everything sits on a 24px baseline. Every line-height is a
+      multiple of it, so two columns of text share a grid.
+
+   Measured pairs, dark: ink on pane 12.8:1, muted on pane 5.79:1,
+   accent on pane 6.33:1, ink on ground 13.83:1, muted on ground
+   6.26:1, accent on ground 6.84:1, handle on pane 3.53:1.
+   Light: ink on pane 15.48:1, muted on pane 6.26:1, accent on pane
+   5.44:1, muted on ground 5.47:1, accent on ground 4.75:1, handle on
+   pane 3.92:1.
+
+   This is phase 1: type, colour and structure. The document still
+   scrolls as one page; panes arrive with ruang.js in phase 2.
    --------------------------------------------------------------- */
 
 @font-face {
-  font-family: "Plus Jakarta Sans";
-  src: url("/fonts/plus-jakarta-sans-latin.woff2") format("woff2");
-  font-weight: 200 800;
+  font-family: "JetBrains Mono";
+  src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2");
+  font-weight: 100 800;
   font-style: normal;
   font-display: swap;
 }
 
-@font-face {
-  font-family: "Plus Jakarta Sans";
-  src: url("/fonts/plus-jakarta-sans-latin-italic.woff2") format("woff2");
-  font-weight: 200 800;
-  font-style: italic;
-  font-display: swap;
-}
-
 :root {
-  --nila: #1c2b5a;
-  --nila-tua: #0f1733;
-  --mori: #e8e7e1;
-  --soga: #7a4a24;
-  --malam: #e3c77a;
-  --tinta: #121a3a;
+  /* dark is the default: the design is drawn for it */
+  --ground: #0b0c0d;
+  --pane: #14161a;
+  --raised: #1b1e24;
+  --rule: #2a2e36;
+  --rule-hi: #3a3f4a;
+  --handle: #666e7d;
+  --ink: #d6d9de;
+  --muted: #8b929f;
+  --accent: #ff6a1f;
 
-  --bg: var(--mori);
-  --ink: var(--tinta);
-  --muted: #525a75;
-  --rule: rgb(18 26 58 / 0.14);
-  --underline: var(--soga);
-  --focus: #8a5d0a;
-  --code-bg: rgb(28 43 90 / 0.06);
+  --line: 1.6rem; /* 24px */
+  --pad: 2ch;
+  --rail: 11ch; /* 'YYYY-MM-DD' plus a space */
+  --measure: 72ch;
+  --bar: calc(var(--line) + 4px);
+  --font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --selvedge: 3.5rem;
-  --edge: clamp(1.5rem, 5vw, 5rem);
-  --measure: 40rem;
-  --font: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
-
-  color-scheme: light dark;
+  color-scheme: dark light;
 }
 
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: var(--nila-tua);
-    --ink: var(--mori);
-    --muted: #a4a9bd;
-    --rule: rgb(232 231 225 / 0.14);
-    --underline: #c08a58;
-    --focus: var(--malam);
-    --code-bg: rgb(232 231 225 / 0.05);
+    --ground: #e8e6e1;
+    --pane: #f6f5f2;
+    --raised: #eeece7;
+    --rule: #c7c4bd;
+    --rule-hi: #a8a49b;
+    --handle: #7e7a71;
+    --ink: #1b1d21;
+    --muted: #565b64;
+    --accent: #b23c06;
   }
 }
 
-* {
+@media (prefers-contrast: more) {
+  :root {
+    --rule: var(--rule-hi);
+  }
+}
+
+/* ---------- base ---------- */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 html {
-  -webkit-text-size-adjust: 100%;
+  font-size: 93.75%; /* 1rem = 15px, so --line lands on 24px */
+  background: var(--ground);
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--pane);
   color: var(--ink);
-  font: 400 1.0625rem/1.65 var(--font);
-  font-kerning: normal;
-  -webkit-font-smoothing: antialiased;
+  font: 1rem / var(--line) var(--font);
+  font-feature-settings: "calt" 0; /* != should stay two characters */
+  font-variant-numeric: tabular-nums;
+  -webkit-text-size-adjust: 100%;
 }
 
 ::selection {
-  background: var(--malam);
-  color: var(--tinta);
+  background: var(--accent);
+  color: var(--ground);
 }
 
 :focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 a {
   color: inherit;
   text-decoration: underline;
-  text-decoration-color: var(--underline);
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.24em;
+  text-decoration-color: var(--muted);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
 }
 
 a:hover {
-  text-decoration-thickness: 3px;
+  text-decoration-color: var(--ink);
 }
 
 .skip {
@@ -112,581 +131,455 @@ a:hover {
 }
 
 .skip:focus {
-  left: 1rem;
-  top: 1rem;
-  z-index: 10;
-  padding: 0.5rem 0.9rem;
-  background: var(--malam);
-  color: var(--tinta);
-}
-
-/* ---------- cloth ---------- */
-
-[data-cloth] {
-  position: relative;
-  overflow: hidden;
-  background: var(--nila);
-}
-
-/* With script on, a cloth starts as bare cotton and cloth.js dyes it.
-   If the script never arrives, the still pattern fades in anyway. */
-.js [data-cloth] {
-  background: var(--mori);
-}
-
-.cloth-still,
-.cloth-canvas {
-  position: absolute;
-  inset: 0;
+  position: static;
   display: block;
-  width: 100%;
-  height: 100%;
+  padding: 0 var(--pad);
+  line-height: var(--bar);
+  background: var(--raised);
 }
 
-.js [data-cloth]:not(.is-live) > .cloth-still {
-  opacity: 0;
-  animation: appear 0.4s ease 2.5s forwards;
+/* ---------- header ---------- */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: var(--pad);
+  min-height: var(--bar);
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
+  font-size: 0.8667rem; /* 13px */
+  flex-wrap: wrap;
 }
 
-[data-cloth].is-live > .cloth-still {
-  display: none;
-}
-
-@keyframes appear {
-  to {
-    opacity: 1;
-  }
-}
-
-/* ---------- type ---------- */
-
-h1,
-h2,
-h3 {
-  margin: 0;
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 1ch;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-decoration: none;
   color: var(--ink);
-  text-wrap: balance;
 }
 
-h1 {
-  margin: clamp(3rem, 10vh, 6rem) 0 1.5rem;
-  font-size: clamp(2.4rem, 1.2rem + 4.2vw, 4rem);
-  font-weight: 780;
-  line-height: 1;
-  letter-spacing: -0.035em;
+.brand:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--ink);
+  text-underline-offset: 3px;
 }
 
-article h2 {
-  margin: 2.6rem 0 0.7rem;
-  font-size: 1.45rem;
-  font-weight: 720;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-article h3 {
-  margin: 2rem 0 0.5rem;
-  font-size: 1.125rem;
-  font-weight: 700;
-}
-
-p,
-ul,
-ol,
-blockquote,
-pre {
-  margin: 0 0 1.2rem;
-}
-
-p,
-li {
-  text-wrap: pretty;
-}
-
-ul,
-ol {
-  padding-left: 1.2rem;
-}
-
-li {
-  margin-bottom: 0.35rem;
-}
-
-li::marker {
-  color: var(--soga);
-}
-
-hr {
-  margin: 2.5rem 0;
-  border: 0;
-  border-top: 1px solid var(--rule);
-}
-
-blockquote {
-  padding-left: 1.1rem;
-  border-left: 2px solid var(--soga);
+.glyph-box {
+  display: flex;
+  align-items: center;
+  height: var(--line);
   color: var(--muted);
+  flex: none;
 }
 
-code {
-  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
-  font-size: 0.88em;
+.glyph {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
-:not(pre) > code {
-  padding: 0.1em 0.3em;
-  background: var(--code-bg);
-  border-radius: 3px;
+.brand:hover .glyph-box {
+  color: var(--ink);
 }
-
-pre {
-  padding: 1rem 1.2rem;
-  overflow-x: auto;
-  background: var(--code-bg);
-  font-size: 0.875rem;
-  line-height: 1.55;
-}
-
-pre code {
-  font-size: inherit;
-}
-
-article > :last-child {
-  margin-bottom: 0;
-}
-
-/* ---------- nav ---------- */
 
 .nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 1.4rem;
-  font-size: 0.9375rem;
+  gap: 2ch;
+  margin-left: auto;
 }
 
 .nav a {
   color: var(--muted);
   text-decoration: none;
+  text-transform: lowercase;
 }
 
 .nav a:hover {
   color: var(--ink);
 }
 
+/* where you are — the one thing besides focus that earns the accent */
 .nav a[aria-current="page"] {
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-color: var(--underline);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.4em;
+  color: var(--accent);
 }
 
-.site-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem 2rem;
-  padding-block: 2rem;
+/* ---------- the sheet ---------- */
+
+main {
+  flex: 1 0 auto;
+  padding: var(--line) var(--pad) calc(var(--line) * 2);
+  /* left-aligned, full width: this is what a one-pane layout looks like */
 }
 
-.brand {
-  font-weight: 700;
-  text-decoration: none;
+main > :first-child {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 500;
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.6rem; /* 24px */
+  line-height: calc(var(--line) * 2);
   letter-spacing: -0.01em;
+  text-wrap: pretty;
 }
 
-/* ---------- reading pages: a selvedge down the left ---------- */
-
-body.page {
-  padding-left: var(--selvedge);
+h2 {
+  font-size: 1.2rem; /* 18px */
+  line-height: var(--line);
+  margin-top: var(--line);
+  text-wrap: pretty;
 }
 
-.cloth-selvedge {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: var(--selvedge);
+h3 {
+  font-size: 1rem;
+  line-height: var(--line);
+  margin-top: var(--line);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-.page .site-header,
-.page main,
-.page .site-footer {
-  margin-left: var(--edge);
-  margin-right: var(--edge);
-}
+/* ---------- prose ---------- */
 
-.page .site-header {
-  max-width: 58rem;
-}
-
-.page main {
+article,
+.prose {
   max-width: var(--measure);
+}
+
+article p,
+article ul,
+article ol,
+article blockquote,
+article pre,
+article table {
+  margin: var(--line) 0;
+}
+
+article p {
+  text-wrap: pretty;
+}
+
+article h2,
+article h3 {
+  margin-top: calc(var(--line) * 2);
+}
+
+article > :last-child {
+  margin-bottom: 0;
+}
+
+article ul,
+article ol {
+  padding-left: 3ch;
+}
+
+article li::marker {
+  color: var(--muted);
+}
+
+blockquote {
+  padding-left: calc(var(--pad) - 1px);
+  border-left: 1px solid var(--rule-hi);
+  color: var(--muted);
+}
+
+hr {
+  height: 0;
+  margin: calc(var(--line) * 2) 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+}
+
+code {
+  font-family: inherit;
+  font-size: inherit;
+  background: var(--raised);
+  padding: 0 0.4ch;
+}
+
+pre {
+  padding: calc(var(--line) / 2) var(--pad);
+  border: 1px solid var(--rule);
+  background: var(--raised);
+  overflow-x: auto;
+  line-height: var(--line);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th,
+td {
+  padding: 0 1ch;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.8667rem;
+}
+
+.lede,
+.intro {
+  max-width: var(--measure);
+  margin: 0 0 var(--line);
+  color: var(--muted);
+}
+
+.post-meta,
+.back-link {
+  margin: 0;
+  font-size: 0.8667rem;
+  color: var(--muted);
 }
 
 .post-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
-  margin: -0.5rem 0 2.5rem;
-  color: var(--muted);
-  font-size: 0.9375rem;
-  font-variant-numeric: tabular-nums;
+  gap: 2ch;
+  margin-bottom: var(--line);
 }
 
 .back-link {
-  margin-top: 3.5rem;
+  margin-top: calc(var(--line) * 2);
 }
 
-.lede {
+/* ---------- home ---------- */
+
+.ident {
+  margin-bottom: 0;
+}
+
+.shelf {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  column-gap: 1ch;
+  margin-top: calc(var(--line) * 2);
+  padding-top: calc(var(--line) - 1px);
+  border-top: 1px solid var(--rule);
+}
+
+.shelf > h2 {
+  grid-column: 1;
+  margin: 0;
+  font-size: 0.8667rem;
+  line-height: var(--line);
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.shelf > div {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.more {
+  margin: var(--line) 0 0;
+  font-size: 0.8667rem;
 }
 
 /* ---------- lists ---------- */
 
 .post-list,
 .project-list {
+  list-style: none;
   margin: 0;
   padding: 0;
-  list-style: none;
 }
 
 .post-item,
 .project {
-  margin: 0;
-  padding-block: 1.5rem;
-  border-top: 1px solid var(--rule);
+  padding: calc(var(--line) / 2) 0;
+  border-bottom: 1px solid var(--rule);
 }
 
 .post-list > :first-child,
 .project-list > :first-child {
-  border-top: 0;
-  padding-top: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.post-item {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  column-gap: 1ch;
+}
+
+.post-date {
+  grid-area: 1 / 1;
+  font-size: 0.8667rem;
+  line-height: var(--line);
+  color: var(--muted);
 }
 
 .post-title,
-.project h2,
-.project h3 {
-  margin: 0 0 0.3rem;
-  font-size: 1.25rem;
-  font-weight: 680;
-  line-height: 1.3;
-  letter-spacing: -0.015em;
+.project-name {
+  font-size: 1rem;
+  line-height: var(--line);
+  font-weight: 500;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-.post-title a,
-.project h2 a,
-.project h3 a {
-  text-decoration-color: transparent;
+.post-title {
+  grid-area: 1 / 2;
 }
 
-.post-title a:hover,
-.project h2 a:hover,
-.project h3 a:hover {
-  text-decoration-color: var(--underline);
+.post-title a {
+  text-decoration-color: var(--rule-hi);
 }
 
-.post-summary,
-.project-desc {
-  margin: 0 0 0.4rem;
-  color: var(--muted);
-  max-width: 34rem;
-}
-
-.post-date,
-.project-meta {
+.post-summary {
+  grid-area: 2 / 2;
+  max-width: var(--measure);
   margin: 0;
   color: var(--muted);
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
+}
+
+.post-tags {
+  grid-area: 3 / 2;
+  font-size: 0.8667rem;
+  color: var(--muted);
 }
 
 .project {
   display: grid;
-  grid-template-columns: 4.75rem minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: start;
+  grid-template-columns: 3ch minmax(0, 1fr);
+  column-gap: 1ch;
+}
+
+.project .glyph-box {
+  grid-area: 1 / 1;
+}
+
+.project-name {
+  grid-area: 1 / 2;
+}
+
+.project-desc {
+  grid-area: 2 / 2;
+  max-width: var(--measure);
+  margin: 0;
+  color: var(--muted);
 }
 
 .project-meta {
+  grid-area: 3 / 2;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
-}
-
-/* A fabric sample, cut with pinking shears. */
-.swatch {
-  width: 4.75rem;
-  aspect-ratio: 1;
-  clip-path: polygon(0% 0%, 5% 5%, 10% 0%, 15% 5%, 20% 0%, 25% 5%, 30% 0%, 35% 5%, 40% 0%, 45% 5%, 50% 0%, 55% 5%, 60% 0%, 65% 5%, 70% 0%, 75% 5%, 80% 0%, 85% 5%, 90% 0%, 95% 5%, 100% 0%, 95% 5%, 100% 10%, 95% 15%, 100% 20%, 95% 25%, 100% 30%, 95% 35%, 100% 40%, 95% 45%, 100% 50%, 95% 55%, 100% 60%, 95% 65%, 100% 70%, 95% 75%, 100% 80%, 95% 85%, 100% 90%, 95% 95%, 100% 100%, 95% 95%, 90% 100%, 85% 95%, 80% 100%, 75% 95%, 70% 100%, 65% 95%, 60% 100%, 55% 95%, 50% 100%, 45% 95%, 40% 100%, 35% 95%, 30% 100%, 25% 95%, 20% 100%, 15% 95%, 10% 100%, 5% 95%, 0% 100%, 5% 95%, 0% 90%, 5% 85%, 0% 80%, 5% 75%, 0% 70%, 5% 65%, 0% 60%, 5% 55%, 0% 50%, 5% 45%, 0% 40%, 5% 35%, 0% 30%, 5% 25%, 0% 20%, 5% 15%, 0% 10%, 5% 5%);
-}
-
-/* ---------- footer ---------- */
-
-.site-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem 2rem;
-  max-width: 58rem;
-  margin-top: 7rem;
-  padding-block: 1.75rem 3rem;
-  border-top: 1px solid var(--rule);
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.site-footer p {
+  gap: 2ch;
   margin: 0;
+  font-size: 0.8667rem;
+  color: var(--muted);
 }
 
-.footer-links {
+/* ---------- status bar ---------- */
+
+/* Phase 1 renders it as a static footer at the end of the document.
+   It is the same element phase 2 pins to the bottom of the shell, and
+   it carries what the site footer used to carry. */
+.statusbar {
   display: flex;
-  gap: 1.25rem;
+  align-items: center;
+  gap: 2ch;
+  min-height: var(--bar);
+  padding: 0 var(--pad);
+  border-top: 1px solid var(--rule);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 0.8667rem;
+  flex-wrap: wrap;
+}
+
+.statusbar ul {
+  display: flex;
+  gap: 2ch;
+  list-style: none;
   margin: 0;
   padding: 0;
-  list-style: none;
 }
 
-.footer-links li {
-  margin: 0;
+.statusbar a {
+  color: var(--muted);
+  text-decoration: none;
 }
 
-.placard {
-  font-style: italic;
+.statusbar a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.site-footer .placard {
-  flex-basis: 100%;
+.statusbar .build {
+  margin-left: auto;
+  color: var(--rule-hi);
 }
 
-/* ---------- home: the whole first screen is cloth ---------- */
-
-.home {
-  --edge: clamp(1.25rem, 3vw, 2.75rem);
-}
-
-.hero {
-  --focus: var(--malam);
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: max(100svh, 34rem);
-  padding: var(--edge);
-  color: var(--mori);
-  isolation: isolate;
-}
-
-.hero > :not(.cloth-still, .cloth-canvas) {
-  position: relative;
-  z-index: 1;
-}
-
-.hero .nav {
-  justify-self: end;
-}
-
-.hero .nav a,
-.hero .nav a:hover,
-.hero .nav a[aria-current="page"] {
-  color: var(--mori);
-  text-decoration-color: var(--malam);
-}
-
-.hero-name {
-  align-self: end;
-  margin: 0 0 clamp(1.5rem, 5vh, 3.5rem);
-  color: var(--mori);
-  font-size: clamp(3.25rem, 12.4vw, 13.5rem);
-  font-weight: 800;
-  line-height: 0.86;
-  letter-spacing: -0.045em;
-}
-
-.hero-name .line {
-  display: block;
-  white-space: nowrap;
-}
-
-/* On the still cloth, text sits on plain dyed patches, as the live
-   cloth leaves the motif out around it. */
-html:not(.js) .hero :is(.nav, .hero-name .line, .hero-foot p),
-html:not(.js) .lost .site-header > * {
-  width: fit-content;
-  background: var(--nila);
-  box-shadow: 0 0 0 0.6rem var(--nila);
-}
-
-/* The cloth paints the name as wax; the text stays for reading,
-   selecting and copying. */
-.js .hero-name {
-  color: transparent;
-}
-
-.js .hero:not(.is-live) .hero-name {
-  animation: name-appears 0.4s ease 2.5s forwards;
-}
-
-@keyframes name-appears {
-  to {
-    color: var(--mori);
-  }
-}
-
-.hero-foot {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.5rem 2rem;
-  font-size: 0.8125rem;
-  color: rgb(232 231 225 / 0.8);
-}
-
-.hero-foot p {
-  margin: 0;
-}
-
-.cloth-hint {
-  visibility: hidden;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .hero.is-live .cloth-hint {
-    visibility: visible;
-  }
-}
-
-.sheet {
-  padding: clamp(4.5rem, 14vh, 9rem) var(--edge) 0;
-}
-
-.intro {
-  max-width: 24ch;
-  margin: 0 0 clamp(4rem, 12vh, 7.5rem);
-  font-size: clamp(1.5rem, 1rem + 1.8vw, 2.25rem);
-  font-weight: 500;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-
-.shelf {
-  display: grid;
-  grid-template-columns: minmax(8rem, 14rem) minmax(0, var(--measure));
-  gap: 1rem 2rem;
-  padding-block: 2.25rem;
-  border-top: 1px solid var(--rule);
-}
-
-.shelf > h2 {
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.9;
-}
-
-.more {
-  margin: 1.5rem 0 0;
-}
-
-.home .site-footer {
-  max-width: none;
-  margin-inline: var(--edge);
-}
-
-/* ---------- 404: a hole burned through the cloth ---------- */
-
-.cloth-lost {
-  position: fixed;
-  inset: 0;
-}
-
-.lost {
-  --edge: clamp(1.25rem, 3vw, 2.75rem);
-  --focus: var(--malam);
-}
-
-.lost .site-header {
-  position: relative;
-  z-index: 1;
-  padding-inline: var(--edge);
-  color: var(--mori);
-}
-
-.lost .site-header .nav a {
-  color: var(--mori);
-}
-
-main.lost {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  min-height: calc(100svh - 12rem);
-  padding: 0 var(--edge) 4rem;
-}
-
-.hole {
-  --focus: #8a5d0a;
-  display: grid;
-  place-content: center;
-  width: min(78vw, 60svh, 26rem);
-  aspect-ratio: 1;
-  padding: 2rem;
-  border-radius: 50%;
-  background: var(--bg);
-  text-align: center;
-}
-
-.cloth-lost.is-live ~ main .hole {
-  background: none;
-}
-
-.hole h1 {
-  margin: 0 0 0.75rem;
-  font-size: clamp(2rem, 1.4rem + 2.5vw, 3rem);
-}
-
-.hole p {
-  margin: 0 0 0.4rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  .hole {
-    --focus: var(--malam);
-  }
-}
-
-/* ---------- narrow screens: the selvedge runs across the top ---------- */
+/* ---------- narrow ---------- */
 
 @media (max-width: 40rem) {
   :root {
-    --edge: 1.25rem;
+    --pad: 1.5ch;
   }
 
-  body.page {
-    padding-left: 0;
-  }
-
-  .cloth-selvedge {
-    position: absolute;
-    inset: 0 0 auto 0;
-    width: auto;
-    height: 2.5rem;
-  }
-
-  .page .site-header {
-    padding-top: 4rem;
-  }
-
-  .shelf {
+  .shelf,
+  .post-item,
+  .project {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .project {
-    grid-template-columns: 3.75rem minmax(0, 1fr);
-    gap: 1.1rem;
+  .shelf > h2,
+  .shelf > div,
+  .post-date,
+  .post-title,
+  .post-summary,
+  .post-tags,
+  .project-name,
+  .project-desc,
+  .project-meta {
+    grid-area: auto;
   }
 
-  .swatch {
-    width: 3.75rem;
+  .project .glyph-box {
+    display: none;
+  }
+
+  .statusbar .build {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

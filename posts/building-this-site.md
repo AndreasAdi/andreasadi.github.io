@@ -1,7 +1,7 @@
 ---
 title: Building this site by hand
 date: 2026-09-20
-updated: 2026-09-23
+updated: 2026-09-24
 summary: Plain HTML, one Node script, and no framework - how this site is put together.
 tags: [meta, node]
 ---
@@ -43,3 +43,21 @@ slowly bleeds back in.
 The build writes a still SVG of the same pattern into every page, so without
 JavaScript or WebGL you see the cloth standing still. There are still no
 dependencies in the page, no fonts from a CDN, and no analytics.
+
+## Update, September 24
+
+The cloth is gone. It was the loudest thing on the page, and what replaced it
+needs the screen quiet. The site is now laid out like the tiling window manager
+I actually work in: monospace throughout, hairline rules, a status bar along the
+bottom, and exactly one accent colour, which is allowed to mean *this is where
+you are* and nothing else. Every line height is a multiple of 24 pixels, so two
+columns of text sit on the same grid — which matters for what comes next.
+
+`cloth.js` was deleted. `motif.js` stayed, doing two smaller jobs: the favicon,
+and a sixteen-pixel scrap of kawung, parang or truntum that each page still
+picks from its own address. Same function, same rule, a fiftieth of the volume.
+
+Next is the part this was all for: clicking a link will open a pane beside the
+one you are reading instead of replacing it, and the arrangement of panes will
+live in the URL, so a post can be handed to someone already tiled next to the
+project it is about.
