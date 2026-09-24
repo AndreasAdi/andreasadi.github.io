@@ -59,8 +59,9 @@ Amended in phase 2: this section used to give `Ctrl`/`Cmd`-click the job of
 replacing a pane in place. Implementing it meant calling `preventDefault` on the
 one gesture every user already owns — open in a new tab — which is a worse
 trade than losing the feature. **All modified clicks now fall through to the
-browser untouched.** Replace-in-place moves to the phase 3 key map, where it
-costs no convention.
+browser untouched.** Replace-in-place moved to a key instead, where it costs no
+convention: `r` in phase 4, which is link-hint mode with the chosen link
+replacing the focused pane rather than splitting it.
 
 **3.3 Both colour schemes ship.** Dark is the default and the one the design is
 drawn for, but the current site honours `prefers-color-scheme` and regressing to
@@ -155,8 +156,14 @@ Light keeps a cool-grey paper rather than white, so `--pane` still reads as a
 --gutter: 1px      /* between panes; hit area is 9px, see §9.3 */
 --measure: 72ch    /* prose max width inside a pane */
 --pane-min: 44ch   /* below this a pane cannot be resized or opened */
+--pane-step: 4ch   /* one press of H or L */
 --bar: calc(var(--line) + 4px)   /* status bar height */
 ```
+
+`--pane-min` and `--pane-step` are **measured** by `ruang.js` at runtime rather
+than duplicated as numbers in the script. Phase 4 shipped with `--pane-min`
+missing from `:root` — `var(--pane-min)` then resolves to nothing, the probe
+measures 0, and every clamp silently becomes no clamp. Keep them defined.
 
 Reuse the existing pattern: tokens on `:root`, redefined under
 `@media (prefers-color-scheme: dark)`, and `color-scheme` declared so form
@@ -251,6 +258,10 @@ collapses the others to a 3ch-wide labelled stub — kept visible on purpose, so
 zoom reads as a state you are in rather than panes having vanished. `Escape`
 exits.
 
+As shipped: the pane count changing resets every width to an equal share, and
+opening or closing a pane leaves zoom. Zoom follows focus, so `h`/`l` or
+clicking a stub while zoomed moves the zoom rather than dropping out of it.
+
 ---
 
 ## 7. URL contract
@@ -260,7 +271,7 @@ This is the signature feature; treat this section as normative.
 ### 7.1 Grammar
 
 ```
-/?p=<path>|<path>|<path>&f=<index>&w=<pct>,<pct>,<pct>
+/?p=<path>|<path>|<path>&f=<index>&w=<pct>,<pct>,<pct>&z=1
 ```
 
 - `p` — pipe-joined pane paths, leading and trailing slashes stripped, each
@@ -268,6 +279,11 @@ This is the signature feature; treat this section as normative.
 - `f` — zero-based index of the focused pane. Default `0`. Out-of-range clamps.
 - `w` — integer percentages, must sum to 100 ± 1 and match `p` in length.
   Omitted, malformed, or mismatched → equal shares. Never an error.
+- `z` — `1` when the focused pane is zoomed (§6.3); absent otherwise. Added in
+  phase 4: a zoom survives a reload and travels with a shared link, which is the
+  same argument that puts `p` and `f` there.
+- `w` is written only when a width differs from an equal share by more than a
+  point, so an untouched layout keeps a clean URL.
 - Unknown params are ignored and preserved on rewrite.
 
 `/?p=posts/building-this-site|projects&f=1` is an essay pre-tiled beside the
@@ -351,6 +367,9 @@ a control. Bindings are listed in the `?` sheet and nowhere else on screen.
 | `h` / `l` | focus pane left / right |
 | `j` / `k` | scroll focused pane down / up (native, one `--line` per press) |
 | `s` | link-hint mode — label every link in the focused pane; typing a label opens it in a new pane |
+| `r` | the same, but the link replaces the focused pane (§3.2) |
+| `f` | zoom focused pane / unzoom |
+| `H` / `L` | make the focused pane narrower / wider by `--pane-step` |
 | `x` | close focused pane (never the last one) |
 | `1`–`3` | focus pane by index |
 | `g` | focus the nav |
@@ -358,21 +377,17 @@ a control. Bindings are listed in the `?` sheet and nowhere else on screen.
 | `Escape` | exit zoom, hint mode, or help |
 
 `s` rather than `f` for hints because `f` is the window-manager verb for
-fullscreen and that association is stronger here than the vimium one — which is
-also why `f` stays unbound until phase 4 gives it a zoom to trigger. `H`/`L`
-(resize by 4ch) waits for the same phase: both keys need a feature this phase
-does not build, and a binding that does nothing is worse than a missing one.
+fullscreen and that association is stronger here than the vimium one.
 
-Phase 3 also leaves replace-in-place unbound. It was dropped from the pointer
-map in §3.2 and belongs on a key, but no obvious letter is free; it can take one
-alongside zoom.
+`H`/`L` grow and shrink the *focused pane* rather than "moving its right
+gutter": the same operation, but it still means something for the last pane in
+the row, which has no right gutter and would otherwise have two dead keys.
 
 ### 9.3 Hit areas
 
-Phase 2 ships the gutter as one hairline of `--ground` showing through a 1px
-flex gap — paint only, no element. It becomes the control below in phase 4, when
-there is a drag for it to carry; a `separator` role that resizes nothing would
-be a lie to a screen reader in the meantime.
+Phase 2 shipped the gutter as paint only — a 1px flex gap, no element — because
+a `separator` role that resizes nothing is a lie to a screen reader. Phase 4
+makes it real:
 
 The gutter is 1px of paint and **9px of hit area**, centred, with
 `cursor: col-resize`. It is a real control: `role="separator"`,
@@ -445,10 +460,17 @@ pairs, tokens on `:root`, no preprocessor. Budget ≤8KB gzipped.
 
 **12.2 `assets/ruang.js`** — new, ES module, no dependencies. Owns: pane model,
 URL serialise/parse, fetch and cache, click interception, keyboard map, gutter
-drag, zoom, hint mode, live-region announcements. Budget ≤8KB gzipped — raised
-from 6KB in phase 3, because the file ships unminified with its comments intact,
-the way the rest of the source does, and stripping them to hold a number I
-guessed before writing the code is the wrong trade. Plain DOM, in the
+drag, zoom, hint mode, live-region announcements. Budget ≤10KB gzipped.
+
+This number moved twice — 6KB, then 8KB, then 10KB — which is worth admitting
+rather than hiding, because it was never derived from anything. 8.5KB of gzipped
+JavaScript is not a performance problem on any connection this site will meet;
+the constraint that actually matters is the one in §12.2's first line, **no
+dependencies and no build step for the page's own script**, and that has held
+since phase 2. 10KB is set with room on purpose so it stops being edited every
+phase. If it is ever in reach again, that means something was added that wants
+justifying on its own terms, not a smaller comment budget: the file ships
+unminified, the way the rest of the source does. Plain DOM, in the
 house style.
 
 **12.3 `build.mjs`**
@@ -490,7 +512,7 @@ subset) plus its OFL, and a matching `<link rel=preload>`.
 | Metric | Budget |
 |---|---|
 | `style.css` | ≤8KB gzipped |
-| `ruang.js` | ≤8KB gzipped |
+| `ruang.js` | ≤10KB gzipped |
 | mono webfont | ≤45KB |
 | requests on first paint | unchanged from today |
 | requests per split | 1, then 0 (cached) |
@@ -513,9 +535,9 @@ headless Chromium; the rest are still by hand.
       pane 2 focused, with no flash of the single-pane document.
 - [x] Narrow viewport (`390px`): identical to a no-JS visit, no horizontal scroll,
       no viewport lock.
-- [x] Keyboard only, no mouse: open two panes, move focus, scroll, close, reach
-      every link by hint — all reachable, focus always visible. (Resize and zoom
-      are phase 4.)
+- [x] Keyboard only, no mouse: open two panes, move focus, scroll, resize, zoom,
+      unzoom, close, reach every link by hint — all reachable, focus always
+      visible.
 - [x] Screen reader announces each pane open with its position.
 - [ ] `prefers-reduced-motion`: no transitions run.
 - [ ] Both schemes: measured ratios in §4 hold; accent appears **only** on focus.
@@ -541,9 +563,11 @@ coherent site.
 3. ~~**Keyboard.**~~ *Shipped.* Key map, `?` sheet, live-region announcements,
    link hints — plus `target=_blank` on external links (§9.1), without which one
    click on a GitHub link took every open pane with it.
-4. **Polish.** Gutter drag and the `H`/`L` resize keys, zoom with stubs and `f`,
-   a key for replace-in-place. `prefers-contrast` landed in phase 1 and the
-   first-split hint in phase 2.
+4. ~~**Polish.**~~ *Shipped.* Gutter drag and the `H`/`L` resize keys, zoom with
+   stubs and `f`, `r` for replace-in-place, the `z` and `w` URL parameters.
+   `prefers-contrast` landed in phase 1 and the first-split hint in phase 2.
+
+All four phases are built. `npm run test:panes` covers them.
 
 ## 16. Open questions
 

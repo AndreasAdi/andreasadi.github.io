@@ -34,6 +34,7 @@ let panes = [];
 let active = 0;
 let clock = 0; // for least-recently-focused recycling
 let hinted = false;
+let zoomed = false;
 let row;
 let indicators;
 let live;
@@ -140,23 +141,154 @@ function markExternal(scope) {
 const skeleton = () =>
   `<div class="skeleton"><span></span><span></span><span></span></div>`;
 
-function errorBody(path, reason) {
-  return `<h1>Not loaded</h1>
+function errorData(path, reason) {
+  return {
+    path,
+    title: "Not loaded",
+    docTitle: document.title,
+    glyph: "",
+    failed: true,
+    body: `<h1>Not loaded</h1>
 <p class="lede">${path} — ${reason}</p>
-<p><a href="/">Back home</a></p>`;
+<p><a href="/">Back home</a></p>`,
+  };
+}
+
+// Both ways of filling a pane — opening a new one and replacing one in
+// place — end the same way, including when the fetch fails.
+async function settle(pane, path, verb) {
+  let data;
+  try {
+    data = await load(path);
+  } catch (err) {
+    data = errorData(path, err.message);
+  }
+  if (!panes.includes(pane)) return; // closed or recycled while loading
+  pane.el.classList.remove("is-loading");
+  pane.el.classList.toggle("is-error", data.failed === true);
+  fill(pane, data);
+  sync();
+  say(
+    data.failed
+      ? `${path} could not be loaded.`
+      : `${verb} ${data.title}. Pane ${panes.indexOf(pane) + 1} of ${panes.length}.`.trim()
+  );
 }
 
 /* ---------- layout ---------- */
 
 function mount() {
-  row.replaceChildren(...panes.map((p) => p.el));
+  const kids = [];
+  panes.forEach((pane, i) => {
+    if (i) kids.push(gutter(i)); // gutter i sits between pane i-1 and pane i
+    kids.push(pane.el);
+  });
+  row.replaceChildren(...kids);
+}
+
+// Opening or closing resets the row to equal shares. Anything cleverer
+// (preserving ratios as the count changes) is arithmetic nobody asked for.
+function share() {
+  const equal = 100 / panes.length;
+  for (const p of panes) p.width = equal;
+}
+
+// --pane-min and --pane-step live in the stylesheet; measure them rather
+// than keep a second copy of the numbers here.
+let sizes = null;
+function px() {
+  if (!sizes) {
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;visibility:hidden";
+    row.append(probe);
+    probe.style.width = "var(--pane-min)";
+    const min = probe.offsetWidth;
+    probe.style.width = "var(--pane-step)";
+    const step = probe.offsetWidth;
+    probe.remove();
+    sizes = { min, step };
+  }
+  return sizes;
+}
+
+const minPct = () => (px().min / row.clientWidth) * 100;
+const stepPct = () => (px().step / row.clientWidth) * 100;
+
+function paint() {
+  if (panes.length < 2) zoomed = false;
+  row.classList.toggle("is-zoomed", zoomed);
+  panes.forEach((p, i) => {
+    const stub = zoomed && i !== active;
+    p.el.classList.toggle("is-stub", stub);
+    p.el.style.flex = zoomed ? (stub ? "0 0 3ch" : "1 1 auto") : `${p.width ?? 100 / panes.length} 1 0`;
+  });
+}
+
+/* ---------- gutters ---------- */
+
+function gutter(i) {
+  const g = document.createElement("div");
+  g.className = "gutter";
+  g.tabIndex = 0;
+  g.setAttribute("role", "separator");
+  g.setAttribute("aria-orientation", "vertical");
+  g.setAttribute("aria-label", `Resize ${panes[i - 1].title}`);
+  g.dataset.index = String(i);
+  g.addEventListener("pointerdown", drag);
+  g.addEventListener("keydown", (e) => {
+    const by = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    if (!by) return;
+    e.preventDefault();
+    move(i - 1, i, by * stepPct());
+    sync();
+  });
+  return g;
+}
+
+// Reallocate between two neighbours only, and never below --pane-min.
+function move(a, b, delta) {
+  if (zoomed) return;
+  const low = minPct();
+  const d = Math.max(-(panes[a].width - low), Math.min(panes[b].width - low, delta));
+  panes[a].width += d;
+  panes[b].width -= d;
+  paint();
+  return d;
+}
+
+function drag(e) {
+  if (zoomed || e.button !== 0) return;
+  const g = e.currentTarget;
+  const i = Number(g.dataset.index);
+  const startX = e.clientX;
+  const startA = panes[i - 1].width;
+  const startB = panes[i].width;
+  g.setPointerCapture(e.pointerId);
+  e.preventDefault();
+
+  const onMove = (ev) => {
+    panes[i - 1].width = startA;
+    panes[i].width = startB;
+    move(i - 1, i, ((ev.clientX - startX) / row.clientWidth) * 100);
+  };
+  const onUp = () => {
+    g.removeEventListener("pointermove", onMove);
+    g.removeEventListener("pointerup", onUp);
+    g.removeEventListener("pointercancel", onUp);
+    sync(); // the URL is written once, on release, never during the drag
+  };
+  g.addEventListener("pointermove", onMove);
+  g.addEventListener("pointerup", onUp);
+  g.addEventListener("pointercancel", onUp);
 }
 
 function sync({ push = false } = {}) {
-  panes.forEach((p, i) => {
-    p.el.classList.toggle("is-focused", i === active);
-    p.el.style.flex = p.width ? `${p.width} 1 0` : "1 1 0";
-  });
+  panes.forEach((p, i) => p.el.classList.toggle("is-focused", i === active));
+  paint();
+  for (const g of row.querySelectorAll(".gutter")) {
+    const i = Number(g.dataset.index);
+    g.setAttribute("aria-valuenow", String(Math.round(panes[i - 1]?.width ?? 0)));
+  }
   row.dataset.count = panes.length;
   row.classList.toggle("is-single", panes.length === 1);
 
@@ -194,7 +326,16 @@ function sync({ push = false } = {}) {
 function serialize() {
   if (panes.length === 1) return panes[0].path;
   const p = panes.map((x) => encodeURIComponent(toParam(x.path))).join("|");
-  return `/?p=${p}&f=${active}`;
+  let url = `/?p=${p}&f=${active}`;
+
+  const equal = 100 / panes.length;
+  if (panes.some((x) => Math.abs(x.width - equal) > 1)) {
+    const w = panes.map((x) => Math.round(x.width));
+    w[w.length - 1] = 100 - w.slice(0, -1).reduce((a, b) => a + b, 0); // absorb rounding
+    url += `&w=${w.join(",")}`;
+  }
+  if (zoomed) url += "&z=1";
+  return url;
 }
 
 function focus(i, { announce = false } = {}) {
@@ -209,6 +350,8 @@ function close(i) {
   if (panes.length <= 1 || i < 0 || i >= panes.length) return;
   const [gone] = panes.splice(i, 1);
   gone.el.remove();
+  zoomed = false;
+  share();
   active = Math.min(active > i ? active - 1 : active, panes.length - 1);
   panes[active].seen = ++clock;
   sync({ push: true });
@@ -243,31 +386,29 @@ async function open(path) {
   pane.el.classList.add("is-loading");
   panes.splice(active + 1, 0, pane);
   active = active + 1;
+  zoomed = false;
   evict(pane);
+  share();
   mount();
   sync({ push: true });
   pane.el.focus({ preventScroll: true });
-
-  try {
-    const data = await load(path);
-    if (!panes.includes(pane)) return; // closed or evicted while loading
-    pane.el.classList.remove("is-loading");
-    fill(pane, data);
-    sync();
-    say(`Opened ${data.title}. Pane ${panes.indexOf(pane) + 1} of ${panes.length}.`);
-  } catch (err) {
-    if (!panes.includes(pane)) return;
-    pane.el.classList.remove("is-loading");
-    pane.el.classList.add("is-error");
-    fill(pane, { title: "Not loaded", docTitle: document.title, body: errorBody(path, err.message), glyph: "" });
-    sync();
-    say(`${path} could not be loaded.`);
-  }
+  await settle(pane, path, "Opened");
 
   if (!hinted) {
     hinted = true;
     hint("a link opens a pane beside this one · × or the URL to share a layout");
   }
+}
+
+// Replace-in-place, which §3.2 took off the pointer and handed to a key.
+async function replaceIn(pane, path) {
+  if (pane.path === path) return say("Already here.");
+  pane.path = path;
+  pane.el.classList.remove("is-error");
+  pane.el.classList.add("is-loading");
+  fill(pane, { title: path, docTitle: document.title, body: skeleton(), glyph: "" });
+  sync({ push: true });
+  await settle(pane, path, "Now showing");
 }
 
 /* ---------- status bar ---------- */
@@ -315,16 +456,7 @@ async function restore() {
 
   const wanted = paths.slice(0, capacity());
   const loaded = await Promise.all(
-    wanted.map((p) =>
-      load(p).catch((err) => ({
-        path: p,
-        title: "Not loaded",
-        docTitle: document.title,
-        body: errorBody(p, err.message),
-        glyph: "",
-        failed: true,
-      }))
-    )
+    wanted.map((p) => load(p).catch((err) => errorData(p, err.message)))
   );
 
   panes = loaded.map((d, i) => {
@@ -333,7 +465,9 @@ async function restore() {
     if (useWidths) pane.width = widths[i];
     return pane;
   });
+  if (!useWidths) share();
   active = Math.min(Math.max(parseInt(q.get("f") ?? "0", 10) || 0, 0), panes.length - 1);
+  zoomed = q.get("z") === "1" && panes.length > 1;
   panes[active].seen = ++clock;
   mount();
   sync();
@@ -357,7 +491,10 @@ function onKey(e) {
   const key = e.key;
 
   if (key === "?") return act(e, () => openHelp());
-  if (key === "Escape") return;
+  if (key === "Escape") {
+    if (zoomed) act(e, () => toggleZoom());
+    return;
+  }
   if (key >= "1" && key <= "9") {
     const n = Number(key) - 1;
     if (n < panes.length) act(e, () => focusPane(n));
@@ -378,7 +515,15 @@ function onKey(e) {
     case "g":
       return act(e, () => document.querySelector(".nav a")?.focus());
     case "s":
-      return act(e, () => startHints());
+      return act(e, () => startHints("split"));
+    case "r":
+      return act(e, () => startHints("replace"));
+    case "f":
+      return act(e, () => toggleZoom());
+    case "H":
+      return act(e, () => resize(-1));
+    case "L":
+      return act(e, () => resize(1));
     default:
   }
 }
@@ -392,6 +537,28 @@ function focusPane(i) {
   if (i < 0 || i >= panes.length || i === active) return;
   focus(i, { announce: true });
   panes[i].el.focus({ preventScroll: true });
+}
+
+/* ---------- zoom ---------- */
+
+// The others collapse to a labelled stub rather than vanishing, so zoom
+// reads as a state you are in and not as panes having been closed.
+function toggleZoom() {
+  if (panes.length < 2) return say("Only one pane.");
+  zoomed = !zoomed;
+  sync();
+  say(zoomed ? `Zoomed ${panes[active].title}.` : "Unzoomed.");
+}
+
+// Grow or shrink the focused pane at its neighbour's expense; the last
+// pane borrows from its left, so the key always does something.
+function resize(dir) {
+  if (panes.length < 2 || zoomed) return;
+  const i = active;
+  if (i < panes.length - 1) move(i, i + 1, dir * stepPct());
+  else move(i - 1, i, -dir * stepPct());
+  sync();
+  say(`${panes[i].title}, ${Math.round(panes[i].width)} percent.`);
 }
 
 /* ---------- link hints ---------- */
@@ -414,7 +581,7 @@ function labelsFor(n) {
   return out;
 }
 
-function startHints() {
+function startHints(mode = "split") {
   const pane = panes[active];
   if (!pane) return;
   const box = pane.body.getBoundingClientRect();
@@ -442,9 +609,11 @@ function startHints() {
     return { label, a, el };
   });
   document.body.append(layer);
-  hints = { items, layer, typed: "" };
+  hints = { items, layer, typed: "", mode };
   pane.body.addEventListener("scroll", endHints, { once: true });
-  say(`Link hints. ${items.length} link${items.length === 1 ? "" : "s"}. Type a label, Escape to leave.`);
+  say(`Link hints, ${mode === "replace" ? "replace this pane" : "open beside"}. ${items.length} link${
+    items.length === 1 ? "" : "s"
+  }. Type a label, Escape to leave.`);
 }
 
 function endHints(message) {
@@ -471,9 +640,12 @@ function hintKey(e) {
   if (!exact) return paintHints();
 
   const { a } = exact;
+  const mode = hints.mode;
   endHints();
   if (a.target === "_blank" || new URL(a.href, location.href).origin !== location.origin) {
     a.click();
+  } else if (mode === "replace") {
+    replaceIn(panes[active], new URL(a.href, location.href).pathname);
   } else {
     open(new URL(a.href, location.href).pathname);
   }
@@ -494,6 +666,9 @@ const BINDINGS = [
   ["1\u20133", "focus a pane by number"],
   ["j k", "scroll the focused pane"],
   ["s", "label the links in this pane, then type a label"],
+  ["r", "same, but the link replaces this pane"],
+  ["f", "zoom the focused pane, or unzoom"],
+  ["H L", "make the focused pane narrower or wider"],
   ["x", "close the focused pane"],
   ["g", "jump to the nav"],
   ["?", "this sheet"],
@@ -568,6 +743,7 @@ async function init() {
   cache.set(seed.path, Promise.resolve(seed));
   panes = [makePane(seed)];
   active = 0;
+  share();
   mount();
 
   // restore() has to read ?p= before sync() rewrites the URL, so the first

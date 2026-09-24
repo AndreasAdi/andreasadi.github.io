@@ -51,6 +51,8 @@
   --pad: 2ch;
   --rail: 11ch; /* 'YYYY-MM-DD' plus a space */
   --measure: 72ch;
+  --pane-min: 44ch; /* a pane never resizes below this; read by ruang.js */
+  --pane-step: 4ch; /* one press of H or L */
   --bar: calc(var(--line) + 4px);
   --font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -571,7 +573,7 @@ th {
      panes has to shrink instead, or it pushes the status bar off screen */
   flex: 1 1 0;
   display: flex;
-  gap: 1px; /* the gutter: one hairline of --ground between panes */
+  gap: 0; /* the gutters are real elements now — see .gutter */
   min-height: 0;
   padding: 0;
   background: var(--ground);
@@ -720,6 +722,61 @@ th {
   overflow: hidden;
   white-space: nowrap;
   clip-path: inset(50%);
+}
+
+/* ---------- gutters ---------- */
+
+.gutter {
+  position: relative;
+  flex: 0 0 1px;
+  background: var(--rule);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+/* one hairline of paint, nine pixels of hit area */
+.gutter::before {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+}
+
+.gutter:hover {
+  background: var(--handle);
+}
+
+.gutter:focus-visible {
+  outline: none; /* the bar itself is the indicator, and it is the accent */
+  background: var(--accent);
+}
+
+.row.is-zoomed .gutter {
+  cursor: default;
+}
+
+/* ---------- zoom (f) ---------- */
+
+.pane.is-stub {
+  overflow: hidden;
+}
+
+.pane.is-stub .pane-body,
+.pane.is-stub .pane-close {
+  display: none;
+}
+
+.pane.is-stub .pane-bar {
+  height: 100%;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 1ch;
+  padding: calc(var(--line) / 2) 0;
+  border-bottom: 0;
+}
+
+.pane.is-stub .pane-title {
+  max-height: calc(100% - var(--line));
+  writing-mode: vertical-rl;
 }
 
 /* ---------- link hints (s) ---------- */

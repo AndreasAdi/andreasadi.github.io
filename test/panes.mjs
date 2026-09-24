@@ -264,7 +264,7 @@ check("g jumps to the nav", await evaluate(`!!document.activeElement.closest(".n
 
 await key("?", 8);
 check("? opens the help sheet", await evaluate(`document.querySelector(".help")?.open === true`));
-check("the sheet lists every binding", await evaluate(`document.querySelectorAll(".help dt").length === 8`));
+check("the sheet lists every binding", await evaluate(`document.querySelectorAll(".help dt").length === 11`));
 check("the sheet is actually on screen", await evaluate(`(() => {
   const r = document.querySelector(".help").getBoundingClientRect();
   return r.width > 200 && r.height > 100 && r.top >= 0 && r.bottom <= innerHeight;
@@ -295,6 +295,71 @@ await key("x", 2);
 check("a modified key is left to the browser", (await state()).count === before, await state());
 await key("x");
 check("x closes the focused pane", (await state()).count === before - 1, await state());
+
+// phase 4: zoom, resize, replace-in-place
+await go("/?p=|posts&f=0");
+check("a gutter sits between the panes", await evaluate(`(() => {
+  const g = document.querySelector(".gutter");
+  return !!g && g.getAttribute("role") === "separator" && g.getAttribute("aria-orientation") === "vertical";
+})()`));
+check("the gutter reports the left pane's share", await evaluate(`Number(document.querySelector(".gutter").getAttribute("aria-valuenow")) === 50`));
+
+await key("f");
+check("f zooms the focused pane", await evaluate(`document.querySelectorAll(".pane.is-stub").length === 1`));
+check("the others collapse to a stub, not away", await evaluate(`(() => {
+  const s = document.querySelector(".pane.is-stub").getBoundingClientRect();
+  return s.width > 8 && s.width < 60;
+})()`));
+check("zoom is in the URL", (await state()).url.includes("z=1"), await state());
+await shot("zoomed");
+await key("Escape");
+check("escape unzooms", await evaluate(`document.querySelectorAll(".pane.is-stub").length === 0`));
+check("zoom leaves the URL", !(await state()).url.includes("z=1"), await state());
+
+await key("L");
+await key("L");
+let widths = await evaluate(`[...document.querySelectorAll(".pane")].map((p) => Math.round(p.getBoundingClientRect().width))`);
+check("L widens the focused pane", widths[0] > widths[1], widths);
+check("widths are in the URL", (await state()).url.includes("&w="), await state());
+await key("H");
+await key("H");
+widths = await evaluate(`[...document.querySelectorAll(".pane")].map((p) => Math.round(p.getBoundingClientRect().width))`);
+check("H narrows it back", Math.abs(widths[0] - widths[1]) < 4, widths);
+
+for (let n = 0; n < 20; n++) await key("H");
+const share = await evaluate(`(() => {
+  const row = document.querySelector(".row").clientWidth;
+  const pane = document.querySelectorAll(".pane")[0].getBoundingClientRect().width;
+  const probe = document.createElement("span");
+  probe.style.cssText = "position:absolute;visibility:hidden;width:var(--pane-min)";
+  document.querySelector(".row").append(probe);
+  const min = probe.offsetWidth;
+  probe.remove();
+  return { pane: Math.round(pane), min, row };
+})()`);
+check("a pane never shrinks past --pane-min", share.pane >= share.min - 2, share);
+
+// drag the gutter
+const g = await evaluate(`(() => { const r = document.querySelector(".gutter").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+const before4 = await evaluate(`document.querySelectorAll(".pane")[0].getBoundingClientRect().width`);
+await send("Input.dispatchMouseEvent", { type: "mousePressed", x: g.x, y: g.y, button: "left", buttons: 1, clickCount: 1 });
+await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: g.x + 140, y: g.y, button: "left", buttons: 1 });
+await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: g.x + 140, y: g.y, button: "left", buttons: 0 });
+await sleep(300);
+const after4 = await evaluate(`document.querySelectorAll(".pane")[0].getBoundingClientRect().width`);
+check("dragging the gutter resizes the neighbours", after4 > before4 + 100, { before: before4, after: after4 });
+check("the drag is written to the URL on release", (await state()).url.includes("&w="), await state());
+await shot("resized");
+
+// r replaces in place
+await go("/?p=|posts&f=0");
+await key("r");
+check("r labels links to replace with", await evaluate(`document.querySelectorAll(".hint-label").length > 0`));
+const rlabel = await evaluate(`document.querySelector('.pane.is-focused .pane-body a[href="/projects/"]').dataset.hint`);
+for (const c of rlabel) await key(c);
+await sleep(500);
+s = await state();
+check("r replaces the pane instead of splitting", s.count === 2 && s.titles[0] === "Projects", s);
 
 // the layer everything else rests on: without scripts it is a plain document
 await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 860, deviceScaleFactor: 1, mobile: false });
