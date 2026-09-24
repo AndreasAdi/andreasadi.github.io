@@ -2,10 +2,13 @@
   "name": "andreasadi-xyz",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "node build.mjs",
-    "serve": "python3 -m http.server 8080 --directory dist"
+    "serve": "python3 -m http.server 8080 --directory dist",
+    "test:panes": "node test/panes.mjs"
   },
   "devDependencies": {
     "highlight.js": "11.12.0",

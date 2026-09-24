@@ -541,6 +541,187 @@ th {
   color: var(--rule-hi);
 }
 
+/* ---------- panes (ruang.js, phase 2) ---------- */
+
+/* Everything under .ruang is the enhanced layer. Without it — no JS, or
+   a viewport under 900px — the rules above stand on their own and the
+   page is a plain scrolling document. */
+
+.ruang,
+.ruang body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* A shared ?p= link loads the home document and rearranges it. Hide the
+   sheet until the panes are mounted, so it never flashes first. The boot
+   script clears this after 2s come what may. */
+.ruang-booting #main {
+  visibility: hidden;
+}
+
+.ruang .site-header,
+.ruang .statusbar {
+  flex: none;
+}
+
+.ruang main.row {
+  /* phase 1 gives main flex: 1 0 auto so a long document grows; a row of
+     panes has to shrink instead, or it pushes the status bar off screen */
+  flex: 1 1 0;
+  display: flex;
+  gap: 1px; /* the gutter: one hairline of --ground between panes */
+  min-height: 0;
+  padding: 0;
+  background: var(--ground);
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--pane);
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+}
+
+.pane.is-focused {
+  outline-color: var(--accent);
+}
+
+/* With one pane there is nothing to distinguish it from, and a border
+   that is always on stops meaning "here". */
+.row.is-single .pane {
+  outline-color: transparent;
+}
+
+.pane-bar {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+  flex: none;
+  height: var(--bar);
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--rule);
+  background: var(--raised);
+  font-size: 0.8667rem;
+  line-height: var(--line);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pane.is-focused .pane-bar {
+  color: var(--ink);
+}
+
+.pane-glyph {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+.pane-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pane-close {
+  margin-left: auto;
+  flex: none;
+  padding: 0 0.5ch;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: var(--line);
+  cursor: pointer;
+}
+
+.pane-close:hover {
+  color: var(--ink);
+}
+
+.row.is-single .pane-close {
+  display: none;
+}
+
+.pane-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--line) var(--pad) calc(var(--line) * 2);
+  animation: ruang-in 90ms ease-out;
+}
+
+@keyframes ruang-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--line) / 2);
+  max-width: var(--measure);
+}
+
+.skeleton span {
+  height: 2px;
+  background: var(--rule);
+}
+
+.skeleton span:nth-child(1) {
+  width: 42%;
+}
+
+.skeleton span:nth-child(2) {
+  width: 78%;
+}
+
+.skeleton span:nth-child(3) {
+  width: 61%;
+}
+
+/* ---------- status bar, pane mode ---------- */
+
+.panes {
+  display: flex;
+  gap: 2ch;
+  min-width: 0;
+}
+
+.pane-tag {
+  max-width: 22ch;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pane-tag.is-focused {
+  color: var(--accent);
+}
+
+.hint {
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+
+.hint.is-on {
+  opacity: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 /* ---------- narrow ---------- */
 
 @media (max-width: 40rem) {

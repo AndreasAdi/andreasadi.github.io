@@ -50,11 +50,17 @@ inputs anywhere — with no `Alt` combos either, since `Alt`+letter collides wit
 menu access keys on Linux Firefox.
 
 **3.2 A plain click splits.** Clicking an internal link opens a *new pane beside
-the current one* rather than replacing it. Modifier-click (`Ctrl`/`Cmd`) replaces
-in place; external links always open a new tab. Splitting has to be the default
+the current one* rather than replacing it. Splitting has to be the default
 gesture or nobody will ever discover the concept — but it needs a ceiling, so
 pane count is capped and the least-recently-focused pane is recycled at the cap
 (§7.2).
+
+Amended in phase 2: this section used to give `Ctrl`/`Cmd`-click the job of
+replacing a pane in place. Implementing it meant calling `preventDefault` on the
+one gesture every user already owns — open in a new tab — which is a worse
+trade than losing the feature. **All modified clicks now fall through to the
+browser untouched.** Replace-in-place moves to the phase 3 key map, where it
+costs no convention.
 
 **3.3 Both colour schemes ship.** Dark is the default and the one the design is
 drawn for, but the current site honours `prefers-color-scheme` and regressing to
@@ -325,15 +331,15 @@ treatment goes with the cloth.
 | Gesture | Result |
 |---|---|
 | click internal link | open in a new pane to the right of the focused pane, and focus it |
-| `Ctrl`/`Cmd`+click, middle-click | replace the focused pane's content in place |
+| `Ctrl`/`Cmd`/`Shift`+click, middle-click | left to the browser — new tab, new window (§3.2) |
 | click external link | new browser tab (`target=_blank rel="noopener"`) |
 | click anywhere in a pane | focus that pane |
 | click pane title bar `×` | close |
 | drag gutter | resize the two neighbours |
 
-First split in a session writes a single hint into the status bar — *click splits ·
-ctrl-click replaces · ? for keys* — which fades after 8s. Once, never again in that
-session. No modal, no tour, no `localStorage`.
+First split in a session writes a single hint into the status bar — *a link opens
+a pane beside this one · × or the URL to share a layout* — which fades after 8s.
+Once, never again in that session. No modal, no tour, no `localStorage`.
 
 ### 9.2 Keyboard
 
@@ -357,6 +363,11 @@ a control. Bindings are listed in the `?` sheet and nowhere else on screen.
 fullscreen and that association is stronger here than the vimium one.
 
 ### 9.3 Hit areas
+
+Phase 2 ships the gutter as one hairline of `--ground` showing through a 1px
+flex gap — paint only, no element. It becomes the control below in phase 4, when
+there is a drag for it to carry; a `separator` role that resizes nothing would
+be a lie to a screen reader in the meantime.
 
 The gutter is 1px of paint and **9px of hit area**, centred, with
 `cursor: col-resize`. It is a real control: `role="separator"`,
@@ -429,8 +440,8 @@ pairs, tokens on `:root`, no preprocessor. Budget ≤8KB gzipped.
 
 **12.2 `assets/ruang.js`** — new, ES module, no dependencies. Owns: pane model,
 URL serialise/parse, fetch and cache, click interception, keyboard map, gutter
-drag, zoom, hint mode, live-region announcements. Budget ≤6KB gzipped. Plain DOM,
-matching the style of `assets/cloth.js`.
+drag, zoom, hint mode, live-region announcements. Budget ≤6KB gzipped. Plain DOM, in the
+house style. Shipped at 4.4KB gzipped.
 
 **12.3 `build.mjs`**
 
@@ -485,23 +496,25 @@ module loads `defer`-style as a module and mounts after parse.
 
 ## 14. Acceptance checklist
 
-Ship gates, not nice-to-haves.
+Ship gates, not nice-to-haves. The ticked ones run as
+`npm run test:panes` (`test/panes.mjs`), which serves `dist/` and drives a
+headless Chromium; the rest are still by hand.
 
-- [ ] JS disabled: every page reads completely, all links work, nothing is hidden.
-- [ ] `?p=posts/building-this-site|projects&f=1` restores that exact layout with
+- [x] JS disabled: every page reads completely, all links work, nothing is hidden.
+- [x] `?p=posts/building-this-site|projects&f=1` restores that exact layout with
       pane 2 focused, with no flash of the single-pane document.
-- [ ] Narrow viewport (`390px`): identical to a no-JS visit, no horizontal scroll,
+- [x] Narrow viewport (`390px`): identical to a no-JS visit, no horizontal scroll,
       no viewport lock.
 - [ ] Keyboard only, no mouse: open two panes, move focus, resize, zoom, unzoom,
       close — all reachable, focus always visible.
 - [ ] Screen reader announces each pane open with its position.
 - [ ] `prefers-reduced-motion`: no transitions run.
 - [ ] Both schemes: measured ratios in §4 hold; accent appears **only** on focus.
-- [ ] Back button after two splits and a focus change returns through layouts,
+- [x] Back button after two splits and a focus change returns through layouts,
       not through focus changes.
-- [ ] A 404 path inside a shared multi-pane URL leaves the other panes intact.
-- [ ] Opening a 4th pane at the cap recycles rather than refusing or overflowing.
-- [ ] Two adjacent panes share a baseline grid — body text lines up across the gutter.
+- [x] A 404 path inside a shared multi-pane URL leaves the other panes intact.
+- [x] Opening a 4th pane at the cap recycles rather than refusing or overflowing.
+- [x] Two adjacent panes share a baseline grid — body text lines up across the gutter.
 - [ ] `grep -r data-cloth dist/` is empty.
 
 ---
@@ -511,11 +524,11 @@ Ship gates, not nice-to-haves.
 Each phase is independently shippable; stopping after any of them leaves a
 coherent site.
 
-1. **Tokens and type.** New `style.css`, mono font, status bar, restructured post
-   and project tables, cloth removed. Still one document per page, no panes. This
-   alone is a complete redesign and carries most of the visual change.
-2. **Pane engine.** Mount pane 0, click-to-split, close, focus, the URL contract,
-   fetch and cache, error panes. The signature feature lands here.
+1. ~~**Tokens and type.**~~ *Shipped.* New `style.css`, mono font, status bar,
+   restructured post and project tables, cloth removed.
+2. ~~**Pane engine.**~~ *Shipped.* Mount pane 0, click-to-split, close, focus,
+   the URL contract, fetch and cache, error panes — plus the nav change in §6.1
+   and the amendment in §3.2, both found while building it.
 3. **Keyboard.** Full key map, `?` sheet, live-region announcements, link hints.
 4. **Polish.** Gutter drag, zoom with stubs, `prefers-contrast`, the first-split
    hint.

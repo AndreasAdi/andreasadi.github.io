@@ -230,7 +230,19 @@ function layout({ title, description, path, content, section, type = "website", 
 <link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/highlight.css">
-<script>document.documentElement.classList.add("js")</script>
+<script>
+(function () {
+  var r = document.documentElement;
+  r.classList.add("js");
+  if (innerWidth < 900) return;
+  r.classList.add("ruang");
+  var p = new URLSearchParams(location.search).get("p");
+  if (!p || p.indexOf("|") === -1) return;
+  r.classList.add("ruang-booting");
+  setTimeout(function () { r.classList.remove("ruang-booting"); }, 2000);
+})();
+</script>
+<script type="module" src="/ruang.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -241,6 +253,7 @@ function layout({ title, description, path, content, section, type = "website", 
 <main id="main" data-pane-path="${esc(path)}" data-pane-title="${esc(paneTitle ?? title)}">
 ${content}
 </main>
+<template id="pane-glyph">${glyph(path)}</template>
 ${statusbar()}
 </body>
 </html>
