@@ -64,21 +64,10 @@ project it is about.
 
 ## Update, October 5
 
-I never built the panes. The window-manager idea was fun to design and tiring to
-read in: a reader who came for a post got a layout to learn first.
+I never built the panes, and after a day of serif columns and another of
+Omarchy themes I took nearly everything away. This is a place to write, so now
+it is a name, three links and a list of what I have written, set in plain Times
+on white, after [Ryan Dahl's site](https://tinyclouds.org/).
 
-The site now borrows from [omarchy.org](https://omarchy.org/) instead: monospace
-everywhere, square corners, and a wordmark drawn in pixels over a scatter of
-lit cells. Both are SVG written by the build from a five-by-seven bitmap font,
-so they cost nothing to load. Each project gets a small mirrored identicon
-until it has a screenshot.
-
-The colours are Omarchy's themes, all of them. Press `T` to step through them,
-`Shift`+`T` to step back, or use the picker in the header; your choice is kept
-for the next visit. That makes this the first version with a script again, and
-it is a small one. Without it the site follows your system's light or dark
-setting and nothing else is missing.
-
-Some of those palettes were drawn for a desktop rather than for paragraphs, so
-the build measures each one and nudges any text colour that falls under 4.5:1
-contrast before writing the stylesheet.
+No projects page, no about page, no web fonts. The only script is the 🌓 button,
+which flips between light and dark and remembers which you chose.
