@@ -1,34 +1,35 @@
-# Design — quiet editorial
+# Design — after omarchy.org
 
-Supersedes Ruang (`redesign/ruang`, still on origin) and Wastra before it.
+Supersedes the brief serif "quiet editorial" pass, Ruang (`redesign/ruang`,
+still on origin) and Wastra before it.
 
-One serif, one column, one accent. The site exists to be read; type does the
-work and nothing is allowed to compete with it.
+The site looks like the desktop it is built on: monospace, square, lit by an
+Omarchy theme.
 
 ## Decisions
 
-- **Typeface:** Newsreader (OFL), self-hosted, variable weight, roman and italic.
-  JetBrains Mono only for code, dates and metadata. No CDN.
-- **Measure:** one centred column, 40rem, 1.25rem gutters. Body is 19px
-  (18px under 36rem) at line-height 1.6.
-- **Colour:** light by default, dark via `prefers-color-scheme`. One accent,
-  used for links only. Tokens and measured contrast are in `assets/style.css`.
-- **Frame:** header (name, three links), main, one-line footer. No status bar,
-  no sidebar, no panes.
-- **JavaScript:** none. Pages ship HTML and CSS only.
-- **Identity:** the favicon stays (a kawung cell). Per-page motifs are gone.
+- **Type:** JetBrains Mono for everything, self-hosted. No second family.
+- **Shape:** square corners. Cards and code blocks get a 1px ring
+  (`box-shadow: 0 0 0 1px`), never a drop shadow.
+- **Colour:** every Omarchy theme, defined once in `themes.js`. The build
+  writes `themes.css` and corrects any theme whose muted text, links or button
+  ink miss 4.5:1 (see `themeVars` in `build.mjs`). Defaults: `tokyo-night`,
+  or `flexoki-light` when the system asks for light.
+- **Pixels:** `lib/pixel.js` holds a 5×7 bitmap font. The build draws the hero
+  wordmark, the header mark, the favicon, the hero's cell field and each
+  project's identicon as SVG. All fills are theme variables.
+- **Script:** one, `assets/theme.js`, for the picker and the `T` / `Shift+T`
+  keys. A few lines in `<head>` apply a saved theme before first paint.
+  Without JavaScript the picker is hidden and the page follows
+  `prefers-color-scheme`.
+- **Nerd details:** a `~/path` crumb above page titles, `##` before article
+  headings, `-` list bullets, `#tags`, and the commit hash in the footer.
 
 ## Pages
 
-- **Home:** two-sentence intro (`site.intro`), latest posts, featured projects,
-  a contact line (`site.contact`).
-- **Post:** title, date, reading time, tags, body, older/newer links.
-- **Projects:** name, one sentence, stack line. An optional `page` field in
-  `projects.js` points the name at a write-up under `/posts/` and moves the repo
-  to a "Source" link.
+- **Home:** "new" pill to the latest post, pixel wordmark, tagline, two
+  buttons, latest posts, project cards, contact card.
+- **Post:** crumb, title, date, reading time, tags, body, older/newer cards.
+- **Projects:** card grid. An optional `page` field in `projects.js` points a
+  card at a write-up under `/posts/`.
 - **About:** `content/about.md`.
-
-## Not done
-
-Screenshots on project entries, until there are some worth showing. More posts:
-the layout is only as good as what is in it.

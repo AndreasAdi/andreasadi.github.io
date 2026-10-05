@@ -65,13 +65,20 @@ project it is about.
 ## Update, October 5
 
 I never built the panes. The window-manager idea was fun to design and tiring to
-read in: a reader who came for a post got a layout to learn first. The site is
-now a single column of serif text, light by default with a dark scheme that
-follows your system, one accent colour for links, and nothing else competing for
-attention.
+read in: a reader who came for a post got a layout to learn first.
 
-The script in the page is gone again, along with the grid, the status bar and the
-monospace body. Monospace survives for code and for dates. The build is still the
-same one file, the favicon is still a scrap of kawung, and there is still no
-analytics and no font from a CDN: the typeface, Newsreader, is served from this
-site.
+The site now borrows from [omarchy.org](https://omarchy.org/) instead: monospace
+everywhere, square corners, and a wordmark drawn in pixels over a scatter of
+lit cells. Both are SVG written by the build from a five-by-seven bitmap font,
+so they cost nothing to load. Each project gets a small mirrored identicon
+until it has a screenshot.
+
+The colours are Omarchy's themes, all of them. Press `T` to step through them,
+`Shift`+`T` to step back, or use the picker in the header; your choice is kept
+for the next visit. That makes this the first version with a script again, and
+it is a small one. Without it the site follows your system's light or dark
+setting and nothing else is missing.
+
+Some of those palettes were drawn for a desktop rather than for paragraphs, so
+the build measures each one and nudges any text colour that falls under 4.5:1
+contrast before writing the stylesheet.
