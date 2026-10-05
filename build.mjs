@@ -1,5 +1,4 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, copyFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Marked } from "marked";
@@ -7,21 +6,12 @@ import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
 import { site } from "./site.js";
 import { projects } from "./projects.js";
-import { motif, glyphSVG, COLORS } from "./lib/motif.js";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const OUT = join(ROOT, "dist");
 
-// The status bar names the build. Local dirty trees and Actions checkouts
-// both have to work, so fall through rather than fail.
-const BUILD = (() => {
-  const r = spawnSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" });
-  const sha = r.status === 0 ? r.stdout.trim() : "";
-  return sha || process.env.GITHUB_SHA?.slice(0, 7) || "dev";
-})();
-
-// Matches --ground / --pane in assets/style.css.
-const THEME = { dark: "#0b0c0d", light: "#f6f5f2" };
+// Matches --ground in assets/style.css.
+const THEME = { dark: "#151413", light: "#fbfaf7" };
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -126,6 +116,8 @@ function loadPosts() {
     if (data.draft !== undefined && typeof data.draft !== "boolean") {
       throw new Error(`${rel}: draft must be true or false`);
     }
+    const html = marked.parse(body);
+    const words = html.replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
     posts.push({
       slug,
       title: data.title,
@@ -134,7 +126,8 @@ function loadPosts() {
       summary: data.summary,
       tags: data.tags === undefined ? [] : stringList(rel, "tags", data.tags),
       draft: data.draft === true,
-      html: marked.parse(body),
+      html,
+      minutes: Math.max(1, Math.round(words / 220)),
     });
   }
   posts.sort((a, b) =>
@@ -155,6 +148,9 @@ function validateProjects() {
     if (!Array.isArray(p.tags) || p.tags.some((t) => typeof t !== "string")) {
       fail("tags must be a list of strings");
     }
+    if (p.page !== undefined && (typeof p.page !== "string" || !p.page.startsWith("/posts/"))) {
+      fail("page must be a /posts/... path");
+    }
     if (p.featured !== undefined && typeof p.featured !== "boolean") {
       fail("featured must be true or false");
     }
@@ -166,7 +162,6 @@ function validateProjects() {
 /* ---------- layout ---------- */
 
 const NAV = [
-  ["Home", "/", "home"],
   ["Posts", "/posts/", "posts"],
   ["Projects", "/projects/", "projects"],
   ["About", "/about/", "about"],
@@ -178,37 +173,28 @@ const nav = (section) => `<nav class="nav" aria-label="Main">
     ).join("\n    ")}
   </nav>`;
 
-// A page's address picks its motif, as it did when the whole page was
-// cloth. Now it is a 14px glyph: enough to tell two panes apart.
-let glyphCount = 0;
-const glyph = (seed) => {
-  const m = motif(seed);
-  return `<span class="glyph-box" title="${esc(`${m.name} no. ${m.number}`)}">${glyphSVG(m, `g${++glyphCount}`)}</span>`;
-};
-
+// The one piece of the batik design that survives: a kawung cell.
 const favicon = (() => {
-  const { nila, mori, soga } = COLORS;
+  const nila = "#1c2b5a";
+  const mori = "#e8e7e1";
+  const soga = "#7a4a24";
   const oval = (cx, cy, rx, ry) =>
     `<ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='${mori}'/><ellipse cx='${cx}' cy='${cy}' rx='${rx * 0.2}' ry='${ry * 0.2}' fill='${soga}'/>`;
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='${nila}'/><g transform='rotate(45 16 16)'>${oval(22, 16, 5.6, 3.8)}${oval(10, 16, 5.6, 3.8)}${oval(16, 22, 3.8, 5.6)}${oval(16, 10, 3.8, 5.6)}</g></svg>`;
   return `data:image/svg+xml,${svg.replace(/#/g, "%23").replace(/</g, "%3C").replace(/>/g, "%3E")}`;
 })();
 
-// The status bar. Phase 1 renders it as a static footer; phase 2 pins it
-// to the bottom of the shell. Either way it carries what the footer did.
-const statusbar = () => `<footer class="statusbar">
+const footer = () => `<footer class="site-footer">
   <span>© ${new Date().getFullYear()} ${esc(site.author)}</span>
   <ul>
     <li><a href="${site.github}">GitHub</a></li>
     <li><a href="mailto:${site.email}">Email</a></li>
     <li><a href="/feed.xml">RSS</a></li>
   </ul>
-  <span class="build" title="build">${esc(BUILD)}</span>
 </footer>`;
 
-// Every page is the same shape: header, one sheet, status bar. Phase 2
-// mounts the sheet as pane 0 from data-pane-*, without refetching it.
-function layout({ title, description, path, content, section, type = "website", paneTitle }) {
+// Every page is the same shape: header, one column, footer.
+function layout({ title, description, path, content, section, type = "website" }) {
   const docTitle = title === site.title ? `${site.title} — ${site.tagline}` : `${title} — ${site.title}`;
   return `<!DOCTYPE html>
 <html lang="${site.language}">
@@ -227,34 +213,20 @@ function layout({ title, description, path, content, section, type = "website", 
 <meta name="twitter:card" content="summary">
 <link rel="alternate" type="application/rss+xml" title="${esc(site.title)}" href="/feed.xml">
 <link rel="icon" href="${favicon}">
-<link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/newsreader-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/highlight.css">
-<script>
-(function () {
-  var r = document.documentElement;
-  r.classList.add("js");
-  if (innerWidth < 900) return;
-  r.classList.add("ruang");
-  var p = new URLSearchParams(location.search).get("p");
-  if (!p || p.indexOf("|") === -1) return;
-  r.classList.add("ruang-booting");
-  setTimeout(function () { r.classList.remove("ruang-booting"); }, 2000);
-})();
-</script>
-<script type="module" src="/ruang.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
-  <a class="brand" href="/">${glyph("/")}${esc(site.title)}</a>
+  <a class="brand" href="/">${esc(site.title)}</a>
   ${nav(section)}
 </header>
-<main id="main" data-pane-path="${esc(path)}" data-pane-title="${esc(paneTitle ?? title)}">
+<main id="main">
 ${content}
 </main>
-<template id="pane-glyph">${glyph(path)}</template>
-${statusbar()}
+${footer()}
 </body>
 </html>
 `;
@@ -271,11 +243,10 @@ const postItem = (p, h = "h2") => `<li class="post-item">
 </li>`;
 
 const projectItem = (p, h = "h2") => `<li class="project">
-  ${glyph(p.repo)}
-  <${h} class="project-name"><a href="${p.repo}">${esc(p.name)}</a></${h}>
+  <${h} class="project-name"><a href="${p.page ?? p.repo}">${esc(p.name)}</a></${h}>
   <p class="project-desc">${esc(p.description)}</p>
   <p class="project-meta">
-    <span>${p.tags.map(esc).join(", ")}</span>${p.url ? `\n    <a href="${p.url}">Live site</a>` : ""}
+    <span>${p.tags.map(esc).join(", ")}</span>${p.page ? `\n    <a href="${p.repo}">Source</a>` : ""}${p.url ? `\n    <a href="${p.url}">Live site</a>` : ""}
   </p>
 </li>`;
 
@@ -293,8 +264,7 @@ const newest = posts.length ? posts[0].date : new Date().toISOString().slice(0, 
 ${body}
   </div>
 </section>`;
-  const home = `<h1 class="ident">${esc(site.author)}</h1>
-<p class="intro">${esc(site.tagline)}</p>
+  const home = `<h1 class="intro">${esc(site.intro)}</h1>
 ${shelf(
   "latest-posts",
   "Posts",
@@ -314,7 +284,8 @@ ${featured.map((p) => projectItem(p, "h3")).join("\n")}
   </ul>
   <p class="more"><a href="/projects/">All projects</a></p>`
     : `  <p>No projects yet.</p>`
-)}`;
+)}
+<p class="contact">${site.contact}</p>`;
   write(
     "index.html",
     layout({
@@ -323,7 +294,6 @@ ${featured.map((p) => projectItem(p, "h3")).join("\n")}
       path: "/",
       content: home,
       section: "home",
-      paneTitle: "Home",
     })
   );
 }
@@ -346,7 +316,16 @@ ${posts.map((p) => postItem(p)).join("\n")}
   })
 );
 
-for (const post of posts) {
+for (const [i, post] of posts.entries()) {
+  const newer = posts[i - 1];
+  const older = posts[i + 1];
+  const pager =
+    newer || older
+      ? `<nav class="post-nav" aria-label="More posts">
+  ${older ? `<a class="prev" href="/posts/${older.slug}/"><span>Older</span>${esc(older.title)}</a>` : ""}
+  ${newer ? `<a class="next" href="/posts/${newer.slug}/"><span>Newer</span>${esc(newer.title)}</a>` : ""}
+</nav>`
+      : "";
   const tags = post.tags.length ? `<span>${post.tags.map(esc).join(", ")}</span>` : "";
   const updated = post.updated ? `<span>updated ${post.updated}</span>` : "";
   write(
@@ -361,11 +340,13 @@ for (const post of posts) {
   <h1>${esc(post.title)}</h1>
   <p class="post-meta">
     <time datetime="${post.date}">${post.date}</time>
+    <span>${post.minutes} min read</span>
     ${tags}
     ${updated}
   </p>
   ${post.html}
 </article>
+${pager}
 <p class="back-link"><a href="/posts/">All posts</a></p>`,
     })
   );

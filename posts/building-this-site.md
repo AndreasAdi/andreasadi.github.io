@@ -1,7 +1,7 @@
 ---
 title: Building this site by hand
 date: 2026-09-20
-updated: 2026-09-24
+updated: 2026-10-05
 summary: Plain HTML, one Node script, and no framework - how this site is put together.
 tags: [meta, node]
 ---
@@ -61,3 +61,17 @@ Next is the part this was all for: clicking a link will open a pane beside the
 one you are reading instead of replacing it, and the arrangement of panes will
 live in the URL, so a post can be handed to someone already tiled next to the
 project it is about.
+
+## Update, October 5
+
+I never built the panes. The window-manager idea was fun to design and tiring to
+read in: a reader who came for a post got a layout to learn first. The site is
+now a single column of serif text, light by default with a dark scheme that
+follows your system, one accent colour for links, and nothing else competing for
+attention.
+
+The script in the page is gone again, along with the grid, the status bar and the
+monospace body. Monospace survives for code and for dates. The build is still the
+same one file, the favicon is still a scrap of kawung, and there is still no
+analytics and no font from a CDN: the typeface, Newsreader, is served from this
+site.

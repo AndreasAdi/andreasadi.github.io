@@ -7,8 +7,7 @@
   },
   "scripts": {
     "build": "node build.mjs",
-    "serve": "python3 -m http.server 8080 --directory dist",
-    "test:panes": "node test/panes.mjs"
+    "serve": "python3 -m http.server 8080 --directory dist"
   },
   "devDependencies": {
     "highlight.js": "11.12.0",

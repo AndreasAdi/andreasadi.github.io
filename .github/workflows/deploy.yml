@@ -2,7 +2,7 @@ name: Deploy site
 
 on:
   push:
-    branches: [redesign/ruang]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

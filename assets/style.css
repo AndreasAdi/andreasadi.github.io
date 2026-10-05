@@ -1,31 +1,29 @@
 /* ---------------------------------------------------------------
-   Andreas Adi — Ruang (docs/ruang.md)
+   Andreas Adi — quiet editorial (docs/design.md)
 
-   Ruang is Indonesian for room, and for space. The site is dressed as
-   the machine it was built on: hairlines, a character grid, one
-   status bar along the bottom, and no ornament that is not structure.
+   One serif, one column, one accent. Type does the work; there is
+   no ornament that is not structure. Light is the default and dark
+   follows prefers-color-scheme.
 
-   Three rules, in priority order:
-
-   1. Focus is the only ornament. --accent marks where you are and
-      nothing else: the focus ring, the current page, selected text.
-      Phase 2 gives it the focused pane's border. It is never
-      decoration.
-   2. Structure over depth. No shadows, no gradients, no radii, no
-      blur. Interest comes from alignment and density.
-   3. Everything sits on a 24px baseline. Every line-height is a
-      multiple of it, so two columns of text share a grid.
-
-   Measured pairs, dark: ink on pane 12.8:1, muted on pane 5.79:1,
-   accent on pane 6.33:1, ink on ground 13.83:1, muted on ground
-   6.26:1, accent on ground 6.84:1, handle on pane 3.53:1.
-   Light: ink on pane 15.48:1, muted on pane 6.26:1, accent on pane
-   5.44:1, muted on ground 5.47:1, accent on ground 4.75:1, handle on
-   pane 3.92:1.
-
-   This is phase 1: type, colour and structure. The document still
-   scrolls as one page; panes arrive with ruang.js in phase 2.
+   Measured contrast, light: ink on ground 16.9:1, muted 6.5:1,
+   accent 7.0:1. Dark: ink 14.9:1, muted 6.9:1, accent 8.1:1.
    --------------------------------------------------------------- */
+
+@font-face {
+  font-family: "Newsreader";
+  src: url("/fonts/newsreader-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Newsreader";
+  src: url("/fonts/newsreader-latin-italic.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
 
 @font-face {
   font-family: "JetBrains Mono";
@@ -36,50 +34,32 @@
 }
 
 :root {
-  /* dark is the default: the design is drawn for it */
-  --ground: #0b0c0d;
-  --pane: #14161a;
-  --raised: #1b1e24;
-  --rule: #2a2e36;
-  --rule-hi: #3a3f4a;
-  --handle: #666e7d;
-  --ink: #d6d9de;
-  --muted: #8b929f;
-  --accent: #ff6a1f;
+  --ground: #fbfaf7;
+  --ink: #1c1b19;
+  --muted: #5f5b54;
+  --rule: #e4e0d8;
+  --wash: #f2efe8;
+  --accent: #9a3412;
 
-  --line: 1.6rem; /* 24px */
-  --pad: 2ch;
-  --rail: 11ch; /* 'YYYY-MM-DD' plus a space */
-  --measure: 72ch;
-  --pane-min: 44ch; /* a pane never resizes below this; read by ruang.js */
-  --pane-step: 4ch; /* one press of H or L */
-  --bar: calc(var(--line) + 4px);
-  --font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  color-scheme: dark light;
+  --measure: 40rem;
+  --gutter: 1.25rem;
+
+  color-scheme: light dark;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --ground: #e8e6e1;
-    --pane: #f6f5f2;
-    --raised: #eeece7;
-    --rule: #c7c4bd;
-    --rule-hi: #a8a49b;
-    --handle: #7e7a71;
-    --ink: #1b1d21;
-    --muted: #565b64;
-    --accent: #b23c06;
+    --ground: #151413;
+    --ink: #e8e5df;
+    --muted: #a09b92;
+    --rule: #2e2c29;
+    --wash: #1d1c1a;
+    --accent: #f08a5d;
   }
 }
-
-@media (prefers-contrast: more) {
-  :root {
-    --rule: var(--rule-hi);
-  }
-}
-
-/* ---------- base ---------- */
 
 *,
 *::before,
@@ -88,8 +68,8 @@
 }
 
 html {
-  font-size: 93.75%; /* 1rem = 15px, so --line lands on 24px */
-  background: var(--ground);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -97,12 +77,13 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--pane);
+  background: var(--ground);
   color: var(--ink);
-  font: 1rem / var(--line) var(--font);
-  font-feature-settings: "calt" 0; /* != should stay two characters */
-  font-variant-numeric: tabular-nums;
-  -webkit-text-size-adjust: 100%;
+  font-family: var(--serif);
+  font-size: 1.1875rem; /* 19px */
+  line-height: 1.6;
+  font-optical-sizing: auto;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
@@ -110,821 +91,439 @@ body {
   color: var(--ground);
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+/* ---------- links ---------- */
 
 a {
-  color: inherit;
+  color: var(--accent);
   text-decoration: underline;
-  text-decoration-color: var(--muted);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.18em;
 }
 
 a:hover {
-  text-decoration-color: var(--ink);
+  text-decoration-thickness: 0.12em;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 .skip {
   position: absolute;
-  left: -100vw;
+  left: var(--gutter);
+  top: -4rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--ink);
+  color: var(--ground);
+  z-index: 10;
 }
 
 .skip:focus {
-  position: static;
-  display: block;
-  padding: 0 var(--pad);
-  line-height: var(--bar);
-  background: var(--raised);
+  top: 0.5rem;
 }
 
-/* ---------- header ---------- */
+/* ---------- frame ---------- */
+
+.site-header,
+main {
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.site-footer {
+  width: min(var(--measure), 100% - 2 * var(--gutter));
+  margin-inline: auto;
+}
+
+main {
+  flex: 1;
+  padding-block: 2.5rem 4rem;
+}
 
 .site-header {
   display: flex;
-  align-items: center;
-  gap: var(--pad);
-  min-height: var(--bar);
-  padding: 0 var(--pad);
-  border-bottom: 1px solid var(--rule);
-  background: var(--raised);
-  font-size: 0.8667rem; /* 13px */
   flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 2rem;
+  padding-block: 1.75rem 0;
 }
 
 .brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 1ch;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
   text-decoration: none;
-  color: var(--ink);
-}
-
-.brand:hover {
-  text-decoration: underline;
-  text-decoration-color: var(--ink);
-  text-underline-offset: 3px;
-}
-
-.glyph-box {
-  display: flex;
-  align-items: center;
-  height: var(--line);
-  color: var(--muted);
-  flex: none;
-}
-
-.glyph {
-  display: block;
-  width: 16px;
-  height: 16px;
-}
-
-.brand:hover .glyph-box {
-  color: var(--ink);
 }
 
 .nav {
   display: flex;
-  gap: 2ch;
-  margin-left: auto;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+  font-size: 1.0625rem;
 }
 
 .nav a {
   color: var(--muted);
   text-decoration: none;
-  text-transform: lowercase;
 }
 
 .nav a:hover {
   color: var(--ink);
 }
 
-/* where you are — the one thing besides focus that earns the accent */
 .nav a[aria-current="page"] {
-  color: var(--accent);
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 0.1em;
+  text-underline-offset: 0.3em;
 }
 
-/* ---------- the sheet ---------- */
-
-main {
-  flex: 1 0 auto;
-  padding: var(--line) var(--pad) calc(var(--line) * 2);
-  /* left-aligned, full width: this is what a one-pane layout looks like */
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  padding-block: 1.5rem 2.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.9375rem;
+  color: var(--muted);
 }
 
-main > :first-child {
-  margin-top: 0;
+.site-footer ul {
+  display: flex;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
+
+.site-footer a {
+  color: var(--muted);
+}
+
+.site-footer a:hover {
+  color: var(--ink);
+}
+
+/* ---------- text ---------- */
 
 h1,
 h2,
 h3 {
-  font-weight: 500;
-  margin: 0;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
 }
 
 h1 {
-  font-size: 1.6rem; /* 24px */
-  line-height: calc(var(--line) * 2);
-  letter-spacing: -0.01em;
-  text-wrap: pretty;
+  margin: 0 0 1.25rem;
+  font-size: 2.5rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
 
 h2 {
-  font-size: 1.2rem; /* 18px */
-  line-height: var(--line);
-  margin-top: var(--line);
-  text-wrap: pretty;
+  margin: 2.75rem 0 0.75rem;
+  font-size: 1.625rem;
 }
 
 h3 {
-  font-size: 1rem;
-  line-height: var(--line);
-  margin-top: var(--line);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  margin: 2rem 0 0.5rem;
+  font-size: 1.25rem;
 }
 
-/* ---------- prose ---------- */
-
-article,
-.prose {
-  max-width: var(--measure);
+p,
+ul,
+ol,
+pre,
+blockquote,
+figure {
+  margin: 0 0 1.25rem;
 }
 
-article p,
-article ul,
-article ol,
-article blockquote,
-article pre,
-article table {
-  margin: var(--line) 0;
+ul,
+ol {
+  padding-left: 1.4em;
 }
 
-article p {
-  text-wrap: pretty;
+li {
+  margin-bottom: 0.4rem;
 }
 
-article h2,
-article h3 {
-  margin-top: calc(var(--line) * 2);
-}
-
-article > :last-child {
-  margin-bottom: 0;
-}
-
-article ul,
-article ol {
-  padding-left: 3ch;
-}
-
-article li::marker {
+li::marker {
   color: var(--muted);
 }
 
-blockquote {
-  padding-left: calc(var(--pad) - 1px);
-  border-left: 1px solid var(--rule-hi);
-  color: var(--muted);
+strong {
+  font-weight: 650;
 }
 
 hr {
-  height: 0;
-  margin: calc(var(--line) * 2) 0;
+  margin: 2.5rem 0;
   border: 0;
   border-top: 1px solid var(--rule);
 }
 
-img {
-  max-width: 100%;
-  height: auto;
-  border: 1px solid var(--rule);
+blockquote {
+  padding-left: 1.25rem;
+  border-left: 2px solid var(--rule);
+  color: var(--muted);
+  font-style: italic;
 }
 
-code {
-  font-family: inherit;
-  font-size: inherit;
-  background: var(--raised);
-  padding: 0 0.4ch;
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+code,
+pre {
+  font-family: var(--mono);
+  font-size: 0.82em;
+}
+
+:not(pre) > code {
+  padding: 0.12em 0.35em;
+  background: var(--wash);
+  border-radius: 3px;
 }
 
 pre {
-  padding: calc(var(--line) / 2) var(--pad);
-  border: 1px solid var(--rule);
-  background: var(--raised);
   overflow-x: auto;
-  line-height: var(--line);
+  padding: 1rem 1.1rem;
+  background: var(--wash);
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  tab-size: 2;
 }
 
 pre code {
-  background: none;
-  padding: 0;
+  font-size: inherit;
 }
 
 table {
   width: 100%;
+  margin-bottom: 1.25rem;
   border-collapse: collapse;
-  text-align: left;
+  font-size: 1rem;
 }
 
 th,
 td {
-  padding: 0 1ch;
+  padding: 0.5rem 0.75rem 0.5rem 0;
   border-bottom: 1px solid var(--rule);
-  vertical-align: top;
-}
-
-th {
-  color: var(--muted);
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.8667rem;
-}
-
-.lede,
-.intro {
-  max-width: var(--measure);
-  margin: 0 0 var(--line);
-  color: var(--muted);
-}
-
-.post-meta,
-.back-link {
-  margin: 0;
-  font-size: 0.8667rem;
-  color: var(--muted);
-}
-
-.post-meta {
-  display: flex;
-  gap: 2ch;
-  margin-bottom: var(--line);
-}
-
-.back-link {
-  margin-top: calc(var(--line) * 2);
+  text-align: left;
 }
 
 /* ---------- home ---------- */
 
-.ident {
-  margin-bottom: 0;
+.intro {
+  max-width: 34rem;
+  margin: 0 0 3rem;
+  font-size: 1.75rem;
+  font-weight: 450;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  text-wrap: pretty;
 }
 
 .shelf {
-  display: grid;
-  grid-template-columns: var(--rail) minmax(0, 1fr);
-  column-gap: 1ch;
-  margin-top: calc(var(--line) * 2);
-  padding-top: calc(var(--line) - 1px);
-  border-top: 1px solid var(--rule);
+  margin-top: 3rem;
 }
 
 .shelf > h2 {
-  grid-column: 1;
-  margin: 0;
-  font-size: 0.8667rem;
-  line-height: var(--line);
-  color: var(--muted);
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.shelf > div {
-  grid-column: 2;
-  min-width: 0;
+  color: var(--muted);
 }
 
 .more {
-  margin: var(--line) 0 0;
-  font-size: 0.8667rem;
+  margin: 1.25rem 0 0;
+  font-size: 1.0625rem;
+}
+
+.contact {
+  margin-top: 3.5rem;
 }
 
 /* ---------- lists ---------- */
 
 .post-list,
 .project-list {
-  list-style: none;
   margin: 0;
   padding: 0;
+  list-style: none;
 }
 
 .post-item,
 .project {
-  padding: calc(var(--line) / 2) 0;
-  border-bottom: 1px solid var(--rule);
+  margin: 0 0 1.75rem;
 }
 
-.post-list > :first-child,
-.project-list > :first-child {
-  border-top: 1px solid var(--rule);
-}
-
-.post-item {
-  display: grid;
-  grid-template-columns: var(--rail) minmax(0, 1fr);
-  column-gap: 1ch;
+.post-date,
+.post-meta,
+.project-meta,
+.post-tags {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  color: var(--muted);
 }
 
 .post-date {
-  grid-area: 1 / 1;
-  font-size: 0.8667rem;
-  line-height: var(--line);
-  color: var(--muted);
+  display: block;
+  margin-bottom: 0.15rem;
 }
 
 .post-title,
 .project-name {
-  font-size: 1rem;
-  line-height: var(--line);
-  font-weight: 500;
   margin: 0;
-  text-transform: none;
-  letter-spacing: 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
-.post-title {
-  grid-area: 1 / 2;
+.post-title a,
+.project-name a {
+  color: var(--ink);
+  text-decoration-color: var(--rule);
 }
 
-.post-title a {
-  text-decoration-color: var(--rule-hi);
+.post-title a:hover,
+.project-name a:hover {
+  color: var(--accent);
+  text-decoration-color: currentColor;
 }
 
-.post-summary {
-  grid-area: 2 / 2;
-  max-width: var(--measure);
-  margin: 0;
-  color: var(--muted);
-}
-
-.post-tags {
-  grid-area: 3 / 2;
-  font-size: 0.8667rem;
-  color: var(--muted);
-}
-
-.project {
-  display: grid;
-  grid-template-columns: 3ch minmax(0, 1fr);
-  column-gap: 1ch;
-}
-
-.project .glyph-box {
-  grid-area: 1 / 1;
-}
-
-.project-name {
-  grid-area: 1 / 2;
-}
-
+.post-summary,
 .project-desc {
-  grid-area: 2 / 2;
-  max-width: var(--measure);
-  margin: 0;
+  margin: 0.2rem 0 0.35rem;
   color: var(--muted);
 }
 
 .project-meta {
-  grid-area: 3 / 2;
   display: flex;
-  gap: 2ch;
-  margin: 0;
-  font-size: 0.8667rem;
-  color: var(--muted);
-}
-
-/* ---------- status bar ---------- */
-
-/* Phase 1 renders it as a static footer at the end of the document.
-   It is the same element phase 2 pins to the bottom of the shell, and
-   it carries what the site footer used to carry. */
-.statusbar {
-  display: flex;
-  align-items: center;
-  gap: 2ch;
-  min-height: var(--bar);
-  padding: 0 var(--pad);
-  border-top: 1px solid var(--rule);
-  background: var(--raised);
-  color: var(--muted);
-  font-size: 0.8667rem;
   flex-wrap: wrap;
-}
-
-.statusbar ul {
-  display: flex;
-  gap: 2ch;
-  list-style: none;
+  gap: 0.25rem 1.25rem;
   margin: 0;
-  padding: 0;
 }
 
-.statusbar a {
+.post-tags {
+  display: block;
+}
+
+/* ---------- article ---------- */
+
+article > h1 {
+  margin-bottom: 0.75rem;
+}
+
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0 0 2.5rem;
+}
+
+article > p:first-of-type {
+  text-wrap: pretty;
+}
+
+.lede {
+  font-size: 1.375rem;
+  line-height: 1.45;
   color: var(--muted);
-  text-decoration: none;
 }
 
-.statusbar a:hover {
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.statusbar .build {
-  margin-left: auto;
-  color: var(--rule-hi);
-}
-
-/* ---------- panes (ruang.js, phase 2) ---------- */
-
-/* Everything under .ruang is the enhanced layer. Without it — no JS, or
-   a viewport under 900px — the rules above stand on their own and the
-   page is a plain scrolling document. */
-
-.ruang,
-.ruang body {
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* A shared ?p= link loads the home document and rearranges it. Hide the
-   sheet until the panes are mounted, so it never flashes first. The boot
-   script clears this after 2s come what may. */
-.ruang-booting #main {
-  visibility: hidden;
-}
-
-.ruang .site-header,
-.ruang .statusbar {
-  flex: none;
-}
-
-.ruang main.row {
-  /* phase 1 gives main flex: 1 0 auto so a long document grows; a row of
-     panes has to shrink instead, or it pushes the status bar off screen */
-  flex: 1 1 0;
+.post-nav {
   display: flex;
-  gap: 0; /* the gutters are real elements now — see .gutter */
-  min-height: 0;
-  padding: 0;
-  background: var(--ground);
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 1.0625rem;
 }
 
-.pane {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background: var(--pane);
-  outline: 2px solid transparent;
-  outline-offset: -2px;
-}
-
-.pane.is-focused {
-  outline-color: var(--accent);
-}
-
-/* With one pane there is nothing to distinguish it from, and a border
-   that is always on stops meaning "here". */
-.row.is-single .pane {
-  outline-color: transparent;
-}
-
-.pane-bar {
-  display: flex;
-  align-items: center;
-  gap: 1ch;
-  flex: none;
-  height: var(--bar);
-  padding: 0 var(--pad);
-  border-bottom: 1px solid var(--rule);
-  background: var(--raised);
-  font-size: 0.8667rem;
-  line-height: var(--line);
+.post-nav span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.75rem;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
-.pane.is-focused .pane-bar {
-  color: var(--ink);
-}
-
-.pane-glyph {
-  display: flex;
-  align-items: center;
-  flex: none;
-}
-
-.pane-title {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.pane-close {
+.post-nav .next {
   margin-left: auto;
-  flex: none;
-  padding: 0 0.5ch;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  line-height: var(--line);
-  cursor: pointer;
+  text-align: right;
 }
 
-.pane-close:hover {
-  color: var(--ink);
+.back-link {
+  margin-top: 2.5rem;
+  font-size: 1.0625rem;
 }
 
-.row.is-single .pane-close {
-  display: none;
-}
+/* ---------- small screens ---------- */
 
-.pane-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: var(--line) var(--pad) calc(var(--line) * 2);
-  animation: ruang-in 90ms ease-out;
-}
+@media (max-width: 36rem) {
+  body {
+    font-size: 1.125rem;
+  }
 
-@keyframes ruang-in {
-  from {
-    opacity: 0;
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.4375rem;
+  }
+
+  .intro {
+    font-size: 1.4375rem;
+  }
+
+  main {
+    padding-block: 2rem 3rem;
   }
 }
 
-.skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--line) / 2);
-  max-width: var(--measure);
-}
-
-.skeleton span {
-  height: 2px;
-  background: var(--rule);
-}
-
-.skeleton span:nth-child(1) {
-  width: 42%;
-}
-
-.skeleton span:nth-child(2) {
-  width: 78%;
-}
-
-.skeleton span:nth-child(3) {
-  width: 61%;
-}
-
-/* ---------- status bar, pane mode ---------- */
-
-.panes {
-  display: flex;
-  gap: 2ch;
-  min-width: 0;
-}
-
-.pane-tag {
-  max-width: 22ch;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.pane-tag.is-focused {
-  color: var(--accent);
-}
-
-.hint {
-  opacity: 0;
-  transition: opacity 120ms ease-out;
-}
-
-.hint.is-on {
-  opacity: 1;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  white-space: nowrap;
-  clip-path: inset(50%);
-}
-
-/* ---------- gutters ---------- */
-
-.gutter {
-  position: relative;
-  flex: 0 0 1px;
-  background: var(--rule);
-  cursor: col-resize;
-  touch-action: none;
-}
-
-/* one hairline of paint, nine pixels of hit area */
-.gutter::before {
-  content: "";
-  position: absolute;
-  inset: 0 -4px;
-}
-
-.gutter:hover {
-  background: var(--handle);
-}
-
-.gutter:focus-visible {
-  outline: none; /* the bar itself is the indicator, and it is the accent */
-  background: var(--accent);
-}
-
-.row.is-zoomed .gutter {
-  cursor: default;
-}
-
-/* ---------- zoom (f) ---------- */
-
-.pane.is-stub {
-  overflow: hidden;
-}
-
-.pane.is-stub .pane-body,
-.pane.is-stub .pane-close {
-  display: none;
-}
-
-.pane.is-stub .pane-bar {
-  height: 100%;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 1ch;
-  padding: calc(var(--line) / 2) 0;
-  border-bottom: 0;
-}
-
-.pane.is-stub .pane-title {
-  max-height: calc(100% - var(--line));
-  writing-mode: vertical-rl;
-}
-
-/* ---------- link hints (s) ---------- */
-
-.hint-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  pointer-events: none;
-}
-
-/* Labels stay neutral while there are many of them on screen at once —
-   the accent is reserved for the ones still matching what you have typed,
-   so it keeps meaning "this is where you are going". */
-.hint-label {
-  position: fixed;
-  padding: 0 0.4ch;
-  background: var(--ink);
-  color: var(--pane);
-  font-size: 0.8667rem;
-  line-height: var(--line);
-  letter-spacing: 0.06em;
-}
-
-.hint-label.is-match {
-  background: var(--accent);
-  color: var(--ground);
-}
-
-.hint-label.is-out {
-  opacity: 0.3;
-}
-
-/* ---------- help sheet (?) ---------- */
-
-.help {
-  width: min(56ch, calc(100vw - 4ch));
-  max-height: 80vh;
-  padding: 0;
-  border: 1px solid var(--rule-hi);
-  background: var(--pane);
-  color: var(--ink);
-  font: 1rem / var(--line) var(--font);
-}
-
-.help::backdrop {
-  background: rgb(0 0 0 / 0.55);
-}
-
-.help-bar {
-  display: flex;
-  align-items: center;
-  height: var(--bar);
-  padding: 0 var(--pad);
-  border-bottom: 1px solid var(--rule);
-  background: var(--raised);
-  color: var(--muted);
-  font-size: 0.8667rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.help-bar .pane-close {
-  margin-left: auto;
-}
-
-.help-body {
-  padding: var(--line) var(--pad);
-  overflow-y: auto;
-}
-
-.help dl {
-  display: grid;
-  grid-template-columns: 9ch minmax(0, 1fr);
-  gap: 0 1ch;
-  margin: 0;
-}
-
-.help dt {
-  font-size: 0.8667rem;
-  line-height: var(--line);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.help dd {
-  margin: 0;
-  color: var(--muted);
-}
-
-.help-note {
-  max-width: var(--measure);
-  margin: var(--line) 0 0;
-  color: var(--muted);
-}
-
-.statusbar .keys {
-  padding: 0 0.5ch;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  cursor: pointer;
-}
-
-.statusbar .keys:hover {
-  color: var(--ink);
-}
-
-/* ---------- narrow ---------- */
-
-@media (max-width: 40rem) {
+@media (prefers-contrast: more) {
   :root {
-    --pad: 1.5ch;
+    --muted: var(--ink);
+    --rule: var(--muted);
+  }
+}
+
+@media print {
+  :root {
+    --ground: #fff;
+    --ink: #000;
+    --muted: #333;
+    --accent: #000;
   }
 
-  .shelf,
-  .post-item,
-  .project {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .shelf > h2,
-  .shelf > div,
-  .post-date,
-  .post-title,
-  .post-summary,
-  .post-tags,
-  .project-name,
-  .project-desc,
-  .project-meta {
-    grid-area: auto;
-  }
-
-  .project .glyph-box {
+  .site-header,
+  .site-footer,
+  .skip {
     display: none;
   }
 
-  .statusbar .build {
-    margin-left: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+  a {
+    text-decoration: underline;
   }
 }
