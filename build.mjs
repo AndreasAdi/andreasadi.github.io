@@ -1,15 +1,16 @@
-import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, copyFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync, copyFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Marked } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
 import { site } from "./site.js";
-import { projects } from "./projects.js";
-import { motif, stillSVG, COLORS } from "./assets/motif.js";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const OUT = join(ROOT, "dist");
+
+// Matches the page background in assets/style.css.
+const THEME = { light: "#ffffff", dark: "#111111" };
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
@@ -28,9 +29,6 @@ const marked = new Marked(
 const esc = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const abs = (p) => new URL(p, site.url).href;
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const prettyDate = (iso) =>
-  `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}, ${iso.slice(0, 4)}`;
 const write = (relPath, contents) => {
   const target = join(OUT, relPath);
   mkdirSync(dirname(target), { recursive: true });
@@ -117,6 +115,7 @@ function loadPosts() {
     if (data.draft !== undefined && typeof data.draft !== "boolean") {
       throw new Error(`${rel}: draft must be true or false`);
     }
+    const html = marked.parse(body);
     posts.push({
       slug,
       title: data.title,
@@ -125,7 +124,7 @@ function loadPosts() {
       summary: data.summary,
       tags: data.tags === undefined ? [] : stringList(rel, "tags", data.tags),
       draft: data.draft === true,
-      html: marked.parse(body),
+      html,
     });
   }
   posts.sort((a, b) =>
@@ -134,101 +133,28 @@ function loadPosts() {
   return posts;
 }
 
-function validateProjects() {
-  projects.forEach((p, i) => {
-    const fail = (msg) => {
-      throw new Error(`projects.js: entry ${i}: ${msg}`);
-    };
-    for (const key of ["name", "description", "repo"]) {
-      if (typeof p[key] !== "string" || p[key] === "") fail(`missing ${key}`);
-    }
-    if (p.url !== null && typeof p.url !== "string") fail("url must be a string or null");
-    if (!Array.isArray(p.tags) || p.tags.some((t) => typeof t !== "string")) {
-      fail("tags must be a list of strings");
-    }
-    if (p.featured !== undefined && typeof p.featured !== "boolean") {
-      fail("featured must be true or false");
-    }
-  });
-  if (projects.length === 0) throw new Error("projects.js: no projects");
-  return projects.map((p) => ({ ...p, featured: p.featured === true }));
-}
-
 /* ---------- layout ---------- */
 
-const NAV = [
-  ["Home", "/", "home"],
-  ["Posts", "/posts/", "posts"],
-  ["Projects", "/projects/", "projects"],
-  ["About", "/about/", "about"],
-];
-
-const nav = (section, attrs = "") => `<nav class="nav" aria-label="Main"${attrs}>
-    ${NAV.map(
-      ([label, href, key]) => `<a href="${href}"${key === section ? ' aria-current="page"' : ""}>${label}</a>`
-    ).join("\n    ")}
-  </nav>`;
-
-// A cloth is any element with data-cloth: the build ships a still of its
-// motif, and cloth.js paints the live version over it.
-let clothCount = 0;
-const cloth = (kind, seed) => {
-  const m = motif(seed);
-  return {
-    m,
-    attrs: `data-cloth="${kind}" data-seed="${esc(seed)}"`,
-    still: stillSVG(m, `cloth-${++clothCount}`),
-    label: `${m.name} no. ${m.number}. Indigo and soga on cotton.`,
-  };
-};
-
+// Black on white, set in whatever Times the reader's machine has: no web
+// fonts, no theme files. The favicon is the one mark the site keeps.
 const favicon = (() => {
-  const { nila, mori, soga } = COLORS;
-  const oval = (cx, cy, rx, ry) =>
-    `<ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='${mori}'/><ellipse cx='${cx}' cy='${cy}' rx='${rx * 0.2}' ry='${ry * 0.2}' fill='${soga}'/>`;
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='${nila}'/><g transform='rotate(45 16 16)'>${oval(22, 16, 5.6, 3.8)}${oval(10, 16, 5.6, 3.8)}${oval(16, 22, 3.8, 5.6)}${oval(16, 10, 3.8, 5.6)}</g></svg>`;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='#333'/><text x='16' y='24' font-family='Times New Roman,serif' font-size='24' font-weight='700' text-anchor='middle' fill='#fff'>a</text></svg>`;
   return `data:image/svg+xml,${svg.replace(/#/g, "%23").replace(/</g, "%3C").replace(/>/g, "%3E")}`;
 })();
 
-const footer = (label) => `<footer class="site-footer">
-  <p>© ${new Date().getFullYear()} ${esc(site.author)}</p>
-  <ul class="footer-links">
-    <li><a href="${site.github}">GitHub</a></li>
-    <li><a href="mailto:${site.email}">Email</a></li>
-    <li><a href="/feed.xml">RSS</a></li>
-  </ul>${label ? `\n  <p class="placard">This page’s cloth: ${esc(label)}</p>` : ""}
-</footer>`;
+// Drop a square photo at assets/avatar.jpg and the header picks it up.
+const AVATAR = existsSync(join(ROOT, "assets/avatar.jpg"));
 
-// variant "home": content brings its own hero. "page": selvedge + header.
-// "lost": the whole sheet is cloth, with a hole burned through it.
-function layout({ title, description, path, content, section, type = "website", variant = "page" }) {
-  const docTitle = title === site.title ? `${site.title} — ${site.tagline}` : `${title} — ${site.title}`;
-  let body;
-  if (variant === "home") {
-    body = `${content}
-${footer()}`;
-  } else if (variant === "lost") {
-    const c = cloth("lost", path);
-    body = `<div class="cloth cloth-lost" ${c.attrs}>${c.still}</div>
-<header class="site-header">
-  <a class="brand" href="/" data-clear>${esc(site.title)}</a>
-  ${nav(section, " data-clear")}
-</header>
-<main id="main" class="lost">
-${content}
-</main>`;
-  } else {
-    const c = cloth("selvedge", path);
-    body = `<div class="cloth cloth-selvedge" ${c.attrs}>${c.still}</div>
-<header class="site-header">
-  <a class="brand" href="/">${esc(site.title)}</a>
-  ${nav(section)}
-</header>
-<main id="main">
-${content}
-</main>
-${footer(c.label)}`;
-  }
+const LINKS = [
+  ["Email", `mailto:${site.email}`],
+  ["GitHub", site.github],
+  ["RSS", "/feed.xml"],
+];
+
+const toggle = `<button type="button" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">🌓</button>`;
+
+function layout({ title, description, path, content, type = "website", top }) {
+  const docTitle = title === site.title ? site.title : `${title} | ${site.title}`;
   return `<!DOCTYPE html>
 <html lang="${site.language}">
 <head>
@@ -236,7 +162,8 @@ ${footer(c.label)}`;
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(docTitle)}</title>
 <meta name="description" content="${esc(description)}">
-<meta name="theme-color" content="${COLORS.nila}">
+<meta name="theme-color" content="${THEME.light}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="${THEME.dark}" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="${abs(path)}">
 <meta property="og:type" content="${type}">
 <meta property="og:title" content="${esc(title)}">
@@ -245,173 +172,98 @@ ${footer(c.label)}`;
 <meta name="twitter:card" content="summary">
 <link rel="alternate" type="application/rss+xml" title="${esc(site.title)}" href="/feed.xml">
 <link rel="icon" href="${favicon}">
-<link rel="preload" href="/fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/style.css">
-<link rel="stylesheet" href="/highlight.css">
-<script>document.documentElement.classList.add("js")</script>
-<script type="module" src="/cloth.js"></script>
+<script>
+// The saved choice is applied before first paint; otherwise the system decides.
+(function () {
+  try {
+    var t = localStorage.getItem("theme");
+    if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+  } catch (e) {}
+})();
+</script>
+<script src="/theme.js" defer></script>
 </head>
-<body class="${variant}">
-<a class="skip" href="#main">Skip to content</a>
-${body}
+<body>
+<div class="container">
+${top}
+<main>
+${content}
+</main>
+</div>
 </body>
 </html>
 `;
 }
 
-/* ---------- partials ---------- */
-
-const postItem = (p, h = "h2") => `<li class="post-item">
-  <${h} class="post-title"><a href="/posts/${p.slug}/">${esc(p.title)}</a></${h}>
-  <p class="post-summary">${esc(p.summary)}</p>
-  <time class="post-date" datetime="${p.date}">${prettyDate(p.date)}</time>
-</li>`;
-
-const projectItem = (p, h = "h2") => {
-  const c = cloth("swatch", p.repo);
-  return `<li class="project">
-  <div class="swatch" ${c.attrs} title="${esc(c.label)}">${c.still}</div>
-  <div class="project-body">
-    <${h}><a href="${p.repo}">${esc(p.name)}</a></${h}>
-    <p class="project-desc">${esc(p.description)}</p>
-    <p class="project-meta">
-      <span>${p.tags.map(esc).join(", ")}</span>
-      ${p.url ? `<a href="${p.url}">Live site</a>` : ""}
-    </p>
-  </div>
-</li>`;
-};
-
 /* ---------- pages ---------- */
 
 const posts = loadPosts().filter((p) => !p.draft);
-const allProjects = validateProjects();
-const featured = allProjects.filter((p) => p.featured);
 const newest = posts.length ? posts[0].date : new Date().toISOString().slice(0, 10);
 
+const backBar = `<div class="topbar">
+  <a class="back" href="/">← Back</a>
+  ${toggle}
+</div>`;
+
 {
-  const hero = cloth("hero", "/");
-  const words = site.author.split(" ");
-  const last = words.pop();
-  const home = `<header class="hero" ${hero.attrs}>
-  ${hero.still}
-  ${nav("home", " data-clear")}
-  <h1 class="hero-name" data-wax><span class="line">${esc(words.join(" "))}</span> <span class="line">${esc(last)}</span></h1>
-  <div class="hero-foot">
-    <p class="cloth-hint" data-clear>Drag across the cloth to draw with wax.</p>
-    <p class="placard" data-clear>${esc(hero.label)}</p>
+  const header = `<header class="header">
+  ${AVATAR ? `<img src="/avatar.jpg" alt="${esc(site.author)}" class="avatar" width="80" height="80">` : ""}
+  <div class="header-content">
+    <h1 class="site-title">${esc(site.title)}</h1>
+    <nav class="links" aria-label="Elsewhere">
+      ${LINKS.map(([label, href]) => `<a href="${href}">${label}</a>`).join("\n      ")}
+    </nav>
   </div>
-</header>
-<main id="main" class="sheet">
-<p class="intro">${esc(site.tagline)}</p>
-<section class="shelf" aria-labelledby="latest-posts">
-  <h2 id="latest-posts">Posts</h2>
-  <div>
-${
-  posts.length
-    ? `  <ul class="post-list">
-${posts.slice(0, 3).map((p) => postItem(p, "h3")).join("\n")}
-  </ul>
-  <p class="more"><a href="/posts/">All posts</a></p>`
-    : `  <p>No posts yet.</p>`
-}
-  </div>
-</section>
-<section class="shelf" aria-labelledby="selected-projects">
-  <h2 id="selected-projects">Projects</h2>
-  <div>
-${
-  featured.length
-    ? `  <ul class="project-list">
-${featured.map((p) => projectItem(p, "h3")).join("\n")}
-  </ul>
-  <p class="more"><a href="/projects/">All projects</a></p>`
-    : `  <p>No projects yet.</p>`
-}
-  </div>
-</section>
-</main>`;
+  ${toggle}
+</header>`;
+  const list = posts.length
+    ? `<ul class="post-list">
+${posts
+  .map(
+    (p) => `  <li>
+    <h2><a href="/posts/${p.slug}/">${esc(p.title)}</a></h2>
+    <time class="post-date" datetime="${p.date}">${p.date}</time>
+  </li>`
+  )
+  .join("\n")}
+</ul>`
+    : `<p class="post-date">Nothing here yet.</p>`;
   write(
     "index.html",
-    layout({ title: site.title, description: site.description, path: "/", content: home, section: "home", variant: "home" })
+    layout({ title: site.title, description: site.description, path: "/", top: header, content: list })
   );
 }
 
-write(
-  "posts/index.html",
-  layout({
-    title: "Posts",
-    description: `Every post on ${site.title}.`,
-    path: "/posts/",
-    section: "posts",
-    content: `<h1>Posts</h1>
-${
-  posts.length
-    ? `<ul class="post-list">
-${posts.map((p) => postItem(p)).join("\n")}
-</ul>`
-    : `<p class="lede">No posts yet.</p>`
-}`,
-  })
-);
-
 for (const post of posts) {
-  const tags = post.tags.length ? `<span>${post.tags.map(esc).join(", ")}</span>` : "";
   write(
     `posts/${post.slug}/index.html`,
     layout({
       title: post.title,
       description: post.summary,
       path: `/posts/${post.slug}/`,
-      section: "posts",
       type: "article",
+      top: backBar,
       content: `<article>
   <h1>${esc(post.title)}</h1>
-  <p class="post-meta">
-    <time datetime="${post.date}">${prettyDate(post.date)}</time>
-    ${tags}
-  </p>
-  ${post.html}
-</article>
-<p class="back-link"><a href="/posts/">All posts</a></p>`,
+  <time class="post-date" datetime="${post.date}">${post.date}</time>
+  <div class="post-body">
+${post.html}
+  </div>
+</article>`,
     })
   );
 }
 
-write(
-  "projects/index.html",
-  layout({
-    title: "Projects",
-    description: `Things ${site.author} has built.`,
-    path: "/projects/",
-    section: "projects",
-    content: `<h1>Projects</h1>
-<ul class="project-list">
-${allProjects.map((p) => projectItem(p)).join("\n")}
-</ul>`,
-  })
-);
-
-{
-  const file = "content/about.md";
-  const { data, body } = parseFrontmatter(file, readFileSync(join(ROOT, file), "utf8"));
-  if (typeof data.title !== "string" || data.title === "") throw new Error(`${file}: missing title`);
-  if (typeof data.description !== "string" || data.description === "") {
-    throw new Error(`${file}: missing description`);
-  }
-  write(
-    "about/index.html",
-    layout({
-      title: data.title,
-      description: data.description,
-      path: "/about/",
-      section: "about",
-      content: `<article>
-<h1>${esc(data.title)}</h1>
-${marked.parse(body)}</article>`,
-    })
-  );
-}
+// The old list page and the retired sections send readers home.
+const redirect = (to) => `<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Moved</title>
+<meta http-equiv="refresh" content="0; url=${to}">
+<link rel="canonical" href="${abs(to)}">
+<p><a href="${to}">Moved here.</a></p>
+`;
+for (const old of ["posts", "projects", "about"]) write(`${old}/index.html`, redirect("/"));
 
 write(
   "404.html",
@@ -419,13 +271,9 @@ write(
     title: "Not found",
     description: "That page does not exist.",
     path: "/404.html",
-    section: "",
-    variant: "lost",
-    content: `<div class="hole" data-hole>
-  <h1>Not found</h1>
-  <p>That page does not exist.</p>
-  <p><a href="/">Back home</a></p>
-</div>`,
+    top: backBar,
+    content: `<h1>Not found</h1>
+<p>That page does not exist.</p>`,
   })
 );
 
@@ -464,9 +312,6 @@ ${items}
 {
   const routes = [
     ["/", newest],
-    ["/posts/", newest],
-    ["/projects/", newest],
-    ["/about/", newest],
     ...posts.map((p) => [`/posts/${p.slug}/`, p.updated ?? p.date]),
   ];
   const urls = routes
@@ -493,21 +338,7 @@ Allow: /
 Sitemap: ${abs("/sitemap.xml")}
 `);
 
-/* ---------- styles ---------- */
-
-const theme = (scheme, file) =>
-  `@media (prefers-color-scheme: ${scheme}) {\n${readFileSync(
-    join(ROOT, "node_modules/highlight.js/styles", file),
-    "utf8"
-  )}\n}`;
-write(
-  "highlight.css",
-  [
-    theme("light", "github.min.css"),
-    theme("dark", "github-dark.min.css"),
-    "pre code.hljs { background: transparent; padding: 0; }",
-  ].join("\n")
-);
+/* ---------- assets ---------- */
 
 function copyDir(src, dest) {
   for (const entry of readdirSync(src, { withFileTypes: true })) {
@@ -524,4 +355,4 @@ function copyDir(src, dest) {
 }
 copyDir(join(ROOT, "assets"), OUT);
 
-console.log(`built ${posts.length} posts, ${allProjects.length} projects → dist/`);
+console.log(`built ${posts.length} posts → dist/`);

@@ -2,7 +2,9 @@
   "name": "andreasadi-xyz",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "node build.mjs",
     "serve": "python3 -m http.server 8080 --directory dist"
